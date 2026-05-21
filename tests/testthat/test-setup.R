@@ -1,0 +1,194 @@
+tempdir_file <- sanitize_path(withr::local_tempdir())
+withr::local_envvar(R_USER_CACHE_DIR = tempdir_file)
+# load_project (Exported)
+test_that("load_project works!", {
+  expect_error(load_project("NO_PROJECTS_YET"))
+  a <- mock_test_project("TEST_CLASSIC")$.internal |> extract_project_details()
+  b <- mock_test_project("TEST_DATA")$.internal |> extract_project_details()
+  c <- mock_test_project("TEST_LONGITUDINAL")$.internal |>
+    extract_project_details()
+  projects <- a |> bind_rows(b) |> bind_rows(c)
+  local_mocked_bindings(
+    get_projects = function(...) projects
+  )
+  expect_error(load_project("NO_PROJECTS_NAMED_THIS")) # no cache
+  expect_error(load_project("TEST_CLASSIC")) # no file
+})
+# load_test_project (Exported)
+test_that("load_test_project works!", {
+})
+# setup_project (Exported)
+test_that("setup_project creates a valid project object and valid directory", {
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  withr::local_options(c(redcapsync.config.allow.test.names = TRUE))
+  expect_error(assert_dir(dir_path = tempdir_test))
+  project_name <- "TEST_CLASSIC"
+  redcap_uri <- "https://redcap.miami.edu/api/"
+  # test_short_names
+  expect_error(assert_env_name("A project"))
+  expect_error(assert_env_name("project$]"))
+  expect_error(assert_env_name("1"))
+  expect_error(assert_env_name(1L))
+  expect_error(assert_env_name(another_name))
+  expect_no_error(assert_env_name("expected_name"))
+  expect_no_error(assert_env_name("expected_name2"))
+  expect_no_error(assert_env_name("EXPECTED_NAME"))
+  # test_redcap_base
+  expect_error(assert_web_link("https://redcap.blah"))
+  expect_no_error(assert_web_link("https://redcap.miami.edu/"))
+  expect_no_error(assert_web_link("https://redcap.miami.edu"))
+  expect_no_error(assert_web_link("https://redcap.edu"))
+  # test db
+  expect_no_error(assert_blank_project(BLANK_PROJECT))
+  expect_error(assert_setup_project(BLANK_PROJECT))
+  expect_error(assert_blank_project(BLANK_PROJECT[[-1L]]))
+  expect_error(assert_blank_project(1L))
+  expect_error(assert_blank_project(data.frame()))
+  expect_error(assert_dir(tempdir_test))
+  # Run setup_project
+  project <- setup_project(
+    project_name = project_name,
+    dir_path = tempdir_test,
+    redcap_uri = redcap_uri,
+    hard_reset = TRUE
+  )$.internal # change to R6 later
+  expect_no_error(assert_dir(dir_path = tempdir_test))
+  expect_no_error(assert_blank_project(project = project))
+  check_dir <- assert_dir(project$dir_path)
+  expect_identical(tempdir_test, check_dir)
+  expect_type(project, type = "list")
+  expect_named(project)
+  expect_true("project_name" %in% names(project))
+  expect_true("dir_path" %in% names(project))
+  expect_false(project$internals$is_blank)
+  expect_false(project$internals$is_test)
+  expect_directory_exists(project$dir_path)
+  expect_identical(project$project_name, project_name)
+  test_dir_files <- list.files(tempdir_test)
+  expect_true(all(DIR_FOLDERS %in% test_dir_files))
+  project$dir_path <- file.path(tempdir_test, "another_fake_folder") |>
+    sanitize_path()
+  expect_error(assert_dir(project$dir_path))
+})
+test_that("setup_project checks existing dir", {
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  withr::local_options(c(redcapsync.config.allow.test.names = TRUE))
+  expect_error(assert_dir(dir_path = tempdir_test))
+  project_name <- "TEST_CLASSIC"
+  project <- mock_test_project(project_name)$.internal
+  save_project(project)
+  redcap_uri <- "https://redcap.miami.edu/api/"
+  # Run setup_project
+  expect_error(
+    setup_project(
+      project_name = project_name,
+      dir_path = tempdir_test,
+      redcap_uri = redcap_uri,
+      hard_reset = FALSE
+    )$.internal # change to R6 later
+  )
+  redcap_uri <- project$links$redcap_uri
+  project_loaded <- setup_project(
+    project_name = project_name,
+    dir_path = tempdir_test,
+    redcap_uri = redcap_uri,
+    hard_reset = FALSE
+  )$.internal # change to R6 later
+  expect_identical(project_loaded$project_name, project$project_name)
+  expect_identical(project_loaded$redcap$project_id, project$redcap$project_id)
+  expect_message({
+    project_loaded <- setup_project(
+      project_name = project_name,
+      dir_path = tempdir_test,
+      redcap_uri = redcap_uri,
+      labelled = FALSE,
+      hard_reset = FALSE
+    )$.internal
+  }, "The loaded project was")
+  expect_null(project_loaded$internals$last_data_update)
+})
+# clean_dir_path (Internal)
+test_that("clean_dir_path works!", {
+})
+# get_project_path (Internal)
+test_that("get_project_path works!", {
+})
+# get_project_path2 (Internal)
+test_that("get_project_path2 works!", {
+})
+# load_project_from_dir (Internal)
+test_that("load_project_from_dir works!", {
+})
+# save_project (Internal)
+test_that("save_project works!", {
+  tempdir_file <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_file)
+  project_name <- "TEST_CLASSIC"
+  project <- mock_test_project(project_name)$.internal
+  redcap_uri <- "https://redcap.miami.edu/api/"
+  project$links$redcap_uri <- redcap_uri
+  expected_save_location <- file.path(project$dir_path,
+                                      "R_objects",
+                                      paste0(project_name, "_REDCapSync.RData"))
+  expect_false(file.exists(expected_save_location))
+  project$internals$ever_connected <- TRUE
+  fake_time <- now_time()
+  project$internals$last_sync <- fake_time
+  project$internals$last_directory_save <- fake_time
+  project$internals$last_data_update <- fake_time
+  project$internals$last_metadata_update <- fake_time
+  project$redcap$timezone <- Sys.timezone()
+  expect_no_error({
+    project <- save_project(project)
+  })
+  expect_file_exists(expected_save_location)
+  # check cached proj
+  projects <- get_projects()
+  expect_identical(nrow(get_projects()), 1L)
+  expect_identical(projects$project_name, project_name)
+  expect_identical(projects$redcap_uri, redcap_uri)
+  # expect identical projects dir_path tempdir_file
+  # loading tests wont load unknown project
+  expect_error(load_project("a_project"))
+  # loads what we saved
+  # change to R6 later
+  project2 <- load_project(project_name = project_name)$.internal
+  expect_identical(project, project2)
+})
+# set_dir (Internal)
+test_that("set_dir handles existing directory correctly", {
+  dir_path <- file.path(tempdir_file, "existing_dir")
+  dir.create(dir_path)
+  expect_message(set_dir(dir_path), "Directory is Valid!")
+  expect_directory_exists(dir_path)
+  expect_true(all(DIR_FOLDERS %in% list.files(dir_path)))
+})
+test_that("set_dir throws an error for invalid directory path", {
+  expect_error(set_dir(123L), "dir must be a character string")
+})
+test_that("set_dir creates missing internal directories", {
+  dir_path <- file.path(tempdir_file, "partial_dir")
+  dir.create(dir_path)
+  dir.create(file.path(dir_path, "R_objects"))
+  expect_message(set_dir(dir_path), "Directory is Valid!")
+  expect_directory_exists(dir_path)
+  expect_true(all(DIR_FOLDERS %in% list.files(dir_path)))
+})
+test_that("set_dir stops if user chooses not to create directory", {
+  dir_path <- file.path(tempdir_file, "no_create_dir")
+  # Mock user input to not create the directory
+  expect_error(set_dir(dir_path), "Path not found. Use absolute path")
+  expect_false(file.exists(dir_path))
+})
+test_that("set_dir validates the directory structure", {
+  dir_path <- file.path(tempdir_file, "valid_dir")
+  dir.create(dir_path)
+  for (folder in DIR_FOLDERS) {
+    dir.create(file.path(dir_path, folder))
+  }
+  expect_message(set_dir(dir_path), "Directory is Valid!")
+  expect_directory_exists(dir_path)
+  expect_true(all(DIR_FOLDERS %in% list.files(dir_path)))
+})

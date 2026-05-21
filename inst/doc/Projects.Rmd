@@ -1,0 +1,36 @@
+---
+title: "Projects"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Projects}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(REDCapSync)
+```
+
+The goal of REDCapSync is to encapsulate a REDCap project into a standardized object. R6 gives a way of keeping some elements internal to the object. Behind-the-scenes is an R list where all of the metadata and data is stored.
+
+```{r, eval=TRUE}
+TEST_CLASSIC <- load_project(project_name = "TEST_CLASSIC")
+listviewer::jsonedit(TEST_CLASSIC$.internal)
+```
+
+The R6 object contains those things behind-the-scenes but then uses several to build an environment. This allows `project$sync()` to update `project` without having to do `project <- project |> sync_something() |> another_function()`
+
+```{r setup, eval=TRUE}
+project <- load_project("TEST_CLASSIC")
+
+# projects have read-only active bindings
+names(REDCapSyncProject$active)
+
+# projects have public methods
+names(REDCapSyncProject$public_methods) |> setdiff("initialize")
+```
+

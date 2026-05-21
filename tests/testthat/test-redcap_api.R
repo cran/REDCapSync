@@ -1,0 +1,355 @@
+tempdir_file <- sanitize_path(withr::local_tempdir())
+withr::local_envvar(R_USER_CACHE_DIR = tempdir_file)
+# get_redcap_log (Internal)
+test_that("get_redcap_log works!", {
+  skip_on_cran()
+  skip_if_offline()
+  # need dev server with log access?
+})
+test_that("get_redcap_log works on fixture!", {
+  project_name <- "TEST_REPEATING"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    exportLogging = function(...) call_list$logging
+  )
+  result <- get_redcap_log(project)
+  expect_data_frame(result)
+})
+# get_redcap_metadata (Internal)
+test_that("get_redcap_ works on real server, simple!", {
+  skip_on_cran()
+  skip_if_offline()
+  withr::local_options(c(redcapsync.config.allow.test.names = TRUE))
+  project_name <- "TEST_REDCAPR_SIMPLE"
+  project <- real_test_project(project_name)$.internal
+  expect_data_frame(as.data.frame(project$metadata$forms), nrows = 0L)
+  expect_data_frame(as.data.frame(project$metadata$fields), nrows = 0L)
+  expect_data_frame(as.data.frame(project$metadata$choices), nrows = 0L)
+  expect_data_frame(as.data.frame(project$redcap$users), nrows = 0L)
+  expect_data_frame(as.data.frame(project$redcap$project_info), nrows = 0L)
+  project_with_metadata <- withr::with_envvar(REAL_DEV_TOKENS, {
+    get_redcap_metadata(project)
+  })
+  expect_data_frame(project_with_metadata$metadata$forms, min.rows = 1L)
+  expect_data_frame(project_with_metadata$metadata$fields, min.rows = 1L)
+  expect_data_frame(project_with_metadata$metadata$choices, min.rows = 1L)
+  expect_data_frame(project_with_metadata$redcap$users, min.rows = 1L)
+  expect_data_frame(project_with_metadata$redcap$project_info, nrows = 1L)
+  # data_test
+  expect_length(project_with_metadata$data, 0L)
+  data_list <- withr::with_envvar(REAL_DEV_TOKENS, {
+    suppressWarnings({
+      get_redcap_data(project_with_metadata)
+    })
+  })
+  expect_list(data_list, min.len = 1L)
+  expect_data_frame(data_list$demographics, min.rows = 1L, min.cols = 2L)
+  project_records <- withr::with_envvar(REAL_DEV_TOKENS, {
+    get_redcap_records(project_with_metadata)
+  })
+  expect_character(project_records, unique = TRUE, min.len = 1L)
+  expect_in(project_records, data_list$demographics$record_id)
+})
+test_that("get_redcap_ works on real server, longitudinal!", {
+  skip_on_cran()
+  skip_if_offline()
+  withr::local_options(c(redcapsync.config.allow.test.names = TRUE))
+  project_name <- "TEST_REDCAPR_SIMPLE"
+  project <- real_test_project(project_name)$.internal
+  expect_data_frame(as.data.frame(project$metadata$forms), nrows = 0L)
+  expect_data_frame(as.data.frame(project$metadata$fields), nrows = 0L)
+  expect_data_frame(as.data.frame(project$metadata$choices), nrows = 0L)
+  expect_data_frame(as.data.frame(project$redcap$users), nrows = 0L)
+  expect_data_frame(as.data.frame(project$redcap$project_info), nrows = 0L)
+  project_with_metadata <- withr::with_envvar(REAL_DEV_TOKENS, {
+    get_redcap_metadata(project)
+  })
+  expect_data_frame(project_with_metadata$metadata$forms, min.rows = 1L)
+  expect_data_frame(project_with_metadata$metadata$fields, min.rows = 1L)
+  expect_data_frame(project_with_metadata$metadata$choices, min.rows = 1L)
+  expect_data_frame(project_with_metadata$redcap$users, min.rows = 1L)
+  expect_data_frame(project_with_metadata$redcap$project_info, nrows = 1L)
+  # data_test
+  expect_length(project_with_metadata$data, 0L)
+  data_list <- withr::with_envvar(REAL_DEV_TOKENS, {
+    suppressWarnings({
+      get_redcap_data(project_with_metadata)
+    })
+  })
+  expect_list(data_list, min.len = 1L)
+  expect_data_frame(data_list$demographics, min.rows = 1L, min.cols = 2L)
+  project_records <- withr::with_envvar(REAL_DEV_TOKENS, {
+    get_redcap_records(project_with_metadata)
+  })
+  expect_character(project_records, unique = TRUE, min.len = 1L)
+  expect_in(project_records, data_list$demographics$record_id)
+})
+test_that("get_redcap_metadata works with fixture data (classic)", {
+  project_name <- "TEST_CLASSIC"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_rcon = function(...) call_list
+  )
+  result <- get_redcap_metadata(project)
+  expect_identical(result$project_name, project$project_name)
+  expect_identical(call_list$project_info, project$redcap$project_info)
+  project$metadata <- BLANK_PROJECT$metadata # clear existing data
+  expect_null(project$metadata$fields)
+  expect_null(project$metadata$forms)
+  expect_list(result)
+  expect_false(is.null(result$metadata))
+  expect_false(is.null(result$redcap$project_info))
+  expect_data_frame(result$metadata$forms, min.rows = 1L)
+  expect_data_frame(result$metadata$fields, min.rows = 1L)
+  expect_false(is.null(result$redcap$project_title))
+  expect_false(is.null(result$redcap$project_id))
+  expect_data_frame(result$metadata$forms)
+  expect_true("form_name" %in% colnames(result$metadata$forms))
+  expect_data_frame(result$metadata$fields)
+  expect_true("field_name" %in% colnames(result$metadata$fields))
+  expect_true("form_name" %in% colnames(result$metadata$fields))
+  expect_data_frame(result$metadata$choices)
+  expect_data_frame(result$redcap$users)
+  expect_true(result$redcap$has_user_access)
+  expect_logical(result$redcap$has_log_access)
+  if (is_something(result$metadata$missing_codes)) {
+    expect_data_frame(result$metadata$missing_codes)
+  }
+  expect_identical(result$project_name, project_name)
+})
+test_that("get_redcap_metadata works with fixture data (longitudinal)", {
+  project_name <- "TEST_REDCAPR_LONGITUDINAL"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_rcon = function(...) call_list
+  )
+  project$metadata <- BLANK_PROJECT$metadata # clear existing data
+  expect_null(project$metadata$fields)
+  expect_null(project$metadata$forms)
+  result <- get_redcap_metadata(project)
+  expect_list(result)
+  expect_true(result$metadata$is_longitudinal)
+  expect_true(result$metadata$has_arms)
+  expect_data_frame(result$metadata$arms, min.rows = 1L)
+  expect_data_frame(result$metadata$events, min.rows = 1L)
+})
+test_that("get_redcap_metadata works with fixture data (repeating forms)", {
+  project_name <- "TEST_REPEATING"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_rcon = function(...) call_list
+  )
+  project$metadata <- BLANK_PROJECT$metadata # clear existing data
+  result <- get_redcap_metadata(project)
+  expect_list(result)
+  expect_true(result$metadata$has_repeating_forms_or_events)
+})
+# get_redcap_records (Internal)
+test_that("get_redcap_records works!", {
+})
+# get_redcap_rcon (Internal)
+test_that("get_redcap_rcon works!", {
+  skip_on_cran()
+  skip_if_offline()
+  # compare fixture colnames to real con colnames
+})
+test_that("get_redcap_rcon returns expected structure without real API calls", {
+  project <- mock_test_project()$.internal
+  # Create a fake rcon with the methods used by get_redcap_rcon
+  fake_rcon <- list(
+    projectInformation = function() {
+      list(project_id = "9999",
+           project_title = "Fake Project",
+           has_repeating_instruments_or_events = "0")
+    },
+    arms = function() {
+      data.frame(arm = character(0L), stringsAsFactors = FALSE)
+    },
+    events = function() {
+      data.frame(event = character(0L), stringsAsFactors = FALSE)
+    },
+    mapping = function() data.frame(),
+    instruments = function() {
+      data.frame(instrument = "form1", stringsAsFactors = FALSE)
+    },
+    repeatInstrumentEvent = function() data.frame(),
+    metadata = function() {
+      data.frame(field_name = character(0L), stringsAsFactors = FALSE)
+    },
+    users = function() {
+      data.frame(username = character(0L), stringsAsFactors = FALSE)
+    },
+    user_roles = function() data.frame(),
+    user_role_assignment = function() data.frame(),
+    dags = function() data.frame(),
+    dag_assignment = function() data.frame(),
+    fileRepository = function() data.frame()
+  )
+  local_mocked_bindings(
+    redcapConnection = function(...) fake_rcon,
+    exportLogging = function(...) data.frame()
+  )
+  out <- get_redcap_rcon(project)
+  # replace with real data from fixtures
+  expect_type(out, "list")
+  # core elements present
+  expect_true("project_info" %in% names(out))
+  expect_true("arms" %in% names(out))
+  expect_true("events" %in% names(out))
+  expect_true("mapping" %in% names(out))
+  expect_true("forms" %in% names(out))
+  expect_true("repeating" %in% names(out))
+  expect_true("fields" %in% names(out))
+  expect_true("logging" %in% names(out))
+  expect_true("users" %in% names(out))
+  expect_true("user_roles" %in% names(out))
+  expect_true("user_role_assignment" %in% names(out))
+  expect_true("dags" %in% names(out))
+  expect_true("dag_assignment" %in% names(out))
+  expect_true("file_repository" %in% names(out))
+  # check a few returned values come from our fake rcon
+  expect_identical(out$project_info$project_id, "9999")
+  expect_s3_class(out$forms, "data.frame")
+})
+# upload_form_to_redcap (Internal)
+test_that("upload_form_to_redcap works!", {
+})
+# add_field_elements (Internal)
+test_that("add_field_elements works!", {
+})
+# get_redcap_data (Internal)
+test_that("get_redcap_data works with fixture data (classic)", {
+  project_name <- "TEST_CLASSIC"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_denormalized = function(...) call_list$data
+  )
+  result <- get_redcap_data(project)
+  expect_identical(result, project$data) # matches fixture call
+  result_not_labelled <- get_redcap_data(project, labelled = FALSE)
+  expect_in(c("0", "1"), result_not_labelled$other$var_yesno)
+})
+test_that("get_redcap_data works with fixture data (longitudinal)", {
+  project_name <- "TEST_REDCAPR_LONGITUDINAL"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_rcon = function(...) call_list
+  )
+  project$metadata <- BLANK_PROJECT$metadata # clear existing data
+  expect_null(project$metadata$fields)
+  expect_null(project$metadata$forms)
+  result <- get_redcap_metadata(project)
+  expect_list(result)
+  expect_true(result$metadata$is_longitudinal)
+  expect_true(result$metadata$has_arms)
+  expect_data_frame(result$metadata$arms, min.rows = 1L)
+  expect_data_frame(result$metadata$events, min.rows = 1L)
+})
+test_that("get_redcap_data works with fixture data (repeating forms)", {
+  project_name <- "TEST_REPEATING"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    get_redcap_rcon = function(...) call_list
+  )
+  project$metadata <- BLANK_PROJECT$metadata # clear existing data
+  result <- get_redcap_metadata(project)
+  expect_list(result)
+  expect_true(result$metadata$has_repeating_forms_or_events)
+})
+# get_redcap_denormalized (Internal)
+test_that("get_redcap_denormalized works!", {
+  skip_on_cran()
+  skip_if_offline()
+  withr::local_options(c(redcapsync.config.allow.test.names = TRUE))
+  project <- real_test_project("TEST_REDCAPR_LONGITUDINAL")$.internal
+  expect_data_frame(as.data.frame(project$data), nrows = 0L)
+  project_data <- suppressWarnings({
+    withr::with_envvar(REAL_DEV_TOKENS, {
+      get_redcap_denormalized(project)
+    })
+  })
+  expect_data_frame(project_data, min.rows = 1L)
+})
+test_that("get_redcap_denormalized works no API call!", {
+  project_name <- "TEST_CLASSIC"
+  project <- mock_test_project(project_name)$.internal
+  call_list <- mock_test_calls(project_name)
+  local_mocked_bindings(
+    redcap_read = function(...) call_list
+  )
+  result <- get_redcap_denormalized(project)
+  expect_data_frame(result, min.rows = 1L)
+})
+# get_redcap_files (Internal)
+test_that("get_redcap_files works!", {
+  skip_on_cran()
+  skip_if_offline()
+})
+test_that("get_redcap_files works, no API call!", {
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  project <- mock_test_project()$.internal
+  out_file_path1 <- file.path(
+    project$dir_path,
+    "REDCap",
+    "TEST_CLASSIC",
+    "files",
+    "var_sig",
+    "other_var_sig_ID_1.png"
+  )
+  out_file_path2 <- file.path(
+    project$dir_path,
+    "REDCap",
+    "TEST_CLASSIC",
+    "files",
+    "var_file",
+    "other_var_file_ID_1.csv"
+  )
+  out_file_paths <- c(out_file_path1, out_file_path2)
+  expect_all_false(file.exists(out_file_paths))
+  local_mocked_bindings(
+    redcap_file_download_oneshot = function(...) {
+      cli_alert_danger("API FAILED!")
+    }
+  )
+  get_redcap_files(project, original_file_names = FALSE, overwrite = FALSE)
+  expect_all_false(file.exists(out_file_paths))
+  local_mocked_bindings(
+    redcap_file_download_oneshot = function(...) {
+      file.create(out_file_paths, showWarnings = FALSE)
+    }
+  )
+  get_redcap_files(project, original_file_names = FALSE, overwrite = FALSE)
+  expect_all_true(file.exists(out_file_paths))
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  drop_nas(project$data$other$var_sig)
+  out_file_path1 <- file.path(
+    project$dir_path,
+    "REDCap",
+    "TEST_CLASSIC",
+    "files",
+    "var_sig",
+    "signature_2025-11-19_1956.png"
+  )
+  drop_nas(project$data$other$var_file)
+  out_file_path2 <- file.path(
+    project$dir_path,
+    "REDCap",
+    "TEST_CLASSIC",
+    "files",
+    "var_file",
+    "Test_DataDictionary_2025-11-19.csv"
+  )
+  out_file_paths <- c(out_file_path1, out_file_path2)
+  expect_all_false(file.exists(out_file_paths))
+  get_redcap_files(project, original_file_names = TRUE, overwrite = FALSE)
+  expect_all_true(file.exists(out_file_paths))
+})

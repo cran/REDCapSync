@@ -1,0 +1,70 @@
+tempdir_file <- sanitize_path(withr::local_tempdir())
+withr::local_envvar(R_USER_CACHE_DIR = tempdir_file)
+# get_projects (Exported)
+test_that("get_projects works!", {
+  df <- get_projects()
+  expect_s3_class(df, "data.frame")
+  expect_true(all(colnames(df) %in% BLANK_PROJECT_COLS))
+  df <- BLANK_PROJECT_DETAILS
+  expect_s3_class(df, "data.frame")
+  expect_true(all(colnames(df) %in% BLANK_PROJECT_COLS))
+  # can test after adding project
+})
+# add_project_details_to_cache (Internal)
+test_that("add_project_details_to_cache works!", {
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  # start empty
+  projects <- get_projects()
+  expect_data_frame(projects, nrows = 0L)
+  # add project details to cache
+  project <- mock_test_project()$.internal
+  project_details <- extract_project_details(project)
+  expect_no_error(add_project_details_to_cache(project_details))
+  projects <- get_projects()
+  expect_data_frame(projects, nrows = 1L)
+  expect_true(project_details$project_name %in% projects$project_name)
+  # conflict: same project_id & same base redcap_uri
+  #but different project_name -> error
+  project_details_conflict <- project_details
+  project_details_conflict$project_name <- "TEST_OTHER"
+  expect_error(add_project_details_to_cache(project_details_conflict))
+})
+# extract_project_details (Internal)
+test_that("extract_project_details works!", {
+  project <- mock_test_project()$.internal
+  project_details <- extract_project_details(project)
+  expect_data_frame(project_details,
+                    ncols = ncol(BLANK_PROJECT_DETAILS),
+                    nrows = 1L)
+  expect_identical(colnames(project_details),
+                   colnames(BLANK_PROJECT_DETAILS))
+})
+# save_projects_to_cache (Internal)
+test_that("save_projects_to_cache works!", {
+  tempdir_test <- sanitize_path(withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = tempdir_test)
+  cache_location <- cache_path()
+  projects <- get_projects()
+  expect_data_frame(projects, nrows = 0L)
+  project <- mock_test_project()$.internal
+  #no connection should not save to cache
+  project_details <- extract_project_details(project)
+  projects <- get_projects()
+  expect_data_frame(projects, nrows = 0L)
+  project$internals$ever_connected <- TRUE
+  save_project(project = project)
+  projects <- get_projects()
+  #connection should save to cache
+  expect_data_frame(projects, nrows = 1L)
+  expect_identical(project_details$project_name, projects$project_name)
+  expect_data_frame(project_details, nrows = 1L)
+  cache_clear()
+  expect_false(file.exists(file.path(cache_location, "projects.rds")))
+  projects <- get_projects()
+  expect_data_frame(projects, nrows = 0L)
+  expect_message(save_projects_to_cache(project_details, silent = FALSE),
+                 "saved")
+  expect_file_exists(file.path(cache_location, "projects.rds"))
+  expect_no_message(save_projects_to_cache(project_details, silent = TRUE))
+})

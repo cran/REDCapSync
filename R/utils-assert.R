@@ -1,0 +1,286 @@
+#' @noRd
+assert_dir <- function(dir_path, silent = FALSE) {
+  # param check
+  dir_path <- clean_dir_path(dir_path)
+  if (!file.exists(dir_path)) {
+    cli_abort("dir_path does not exist")
+  }
+  for (folder in DIR_FOLDERS) {
+    if (!file.exists(file.path(dir_path, folder))) {
+      cli_abort("'{dir_path}/{folder}' missing! Use `setup_project()`")
+    }
+  }
+  if (!silent) {
+    cli_alert_success("Directory is Valid! {.file {dir_path}}")
+  }
+  dir_path
+}
+#' @noRd
+assert_web_link <- function(link) {
+  #change to validate api endpoint
+  if (is.null(link))
+    cli_abort("link is NULL")
+  # Check if the link starts with "https://" or "http://"
+  if (!grepl("^https?://", link)) {
+    cli_abort("Invalid web link. It must start with 'http://' or 'https://'.")
+  }
+  # Remove trailing slash if present
+  link <- gsub("/$", "", link)
+  # Check if the link ends with one of the specified web endings
+  if (!grepl("\\.(edu|com|org|net|gov|io|xyz|info|co|uk)$", link)) {
+    cli_abort("Invalid web link. It must end with '.edu', '.com', etc.")
+  }
+  # Add a trailing slash
+  link <- paste0(link, "/")
+  link
+}
+#' @noRd
+assert_env_name <- function(x, max.chars = 26L, all_caps = FALSE) {
+  assert_character(x, len = 1L, min.chars = 1L, any.missing = FALSE)
+  # can change to min.length for projects
+  assert_integerish(max.chars,
+                    len = 1L,
+                    lower = 1L,
+                    upper = 255L,
+                    any.missing = FALSE)
+  assert_string(
+    x,
+    n.chars = NULL,
+    min.chars = 1L,
+    max.chars = max.chars,
+    pattern =  "^[A-Za-z][A-Za-z0-9_]*$",
+    fixed = NULL,
+    ignore.case = TRUE
+  )
+  if (all_caps) {
+    assert_string(
+      x,
+      n.chars = NULL,
+      min.chars = 1L,
+      max.chars = max.chars,
+      pattern = "^[A-Z][A-Z0-9_]*$",
+      fixed = NULL,
+      ignore.case = FALSE
+    )
+  }
+  invisible(x)
+}
+#' @noRd
+assert_blank_project <- function(project) {
+  assert_list(project, names = "unique", len = length(BLANK_PROJECT))
+  assert_names(names(project),
+               type = "unique",
+               must.include = names(BLANK_PROJECT))
+  invisible(project)
+}
+#' @noRd
+assert_setup_project <- function(project) {
+  assert_blank_project(project)
+  assert_env_name(project$project_name, max.chars = 31L, all_caps = TRUE)
+  # dir_path
+  # redcap_uri
+  assert_env_name(project$token_name, max.chars = 50L, all_caps = TRUE)
+  #redcap --------------
+  assert_choice(project$redcap$timezone, OlsonNames())
+  #settings --------------
+  assert_choice(project$settings$sync_frequency, choices = SYNC_FREQUENCY)
+  assert_logical(project$settings$labelled, len = 1L, any.missing = FALSE)
+  assert_choice(project$settings$get_type, choices = GET_TYPE)
+  assert(
+    test_scalar_na(project$settings$records) ||
+      test_character(
+        project$settings$records, # add exist warning
+        min.chars = 1L,
+        unique = TRUE,
+        min.len = 1L,
+        any.missing = FALSE
+      )
+  )
+  assert(
+    test_scalar_na(project$settings$fields) ||
+      test_character(
+        project$settings$fields, # add exist warning
+        min.chars = 1L,
+        unique = TRUE,
+        min.len = 1L,
+        any.missing = FALSE
+      )
+  )
+  assert(
+    test_scalar_na(project$settings$forms) ||
+      test_character(
+        project$settings$forms, # add exist warning
+        min.chars = 1L,
+        unique = TRUE,
+        min.len = 1L,
+        any.missing = FALSE
+      )
+  )
+  assert(
+    test_scalar_na(project$settings$events) ||
+      test_character(
+        project$settings$events, # add exist warning
+        min.chars = 1L,
+        unique = TRUE,
+        min.len = 1L,
+        any.missing = FALSE
+      )
+  )
+  assert(
+    test_scalar_na(project$settings$filter_logic) ||
+      test_character(
+        project$settings$filter_logic, # add exist warning
+        min.chars = 1L,
+        unique = TRUE,
+        min.len = 1L,
+        any.missing = FALSE
+      )
+  )
+  assert_integerish(
+    project$settings$id_position,
+    len = 1L,
+    lower = 1L,
+    any.missing = FALSE
+  )
+  assert_logical(project$settings$get_users, len = 1L, any.missing = FALSE)
+  assert_logical(project$settings$get_data, len = 1L, any.missing = FALSE)
+  assert_integerish(
+    project$settings$batch_size_download,
+    len = 1L,
+    lower = 1L,
+    any.missing = FALSE
+  )
+  assert_integerish(
+    project$settings$batch_size_upload,
+    len = 1L,
+    lower = 1L,
+    any.missing = FALSE
+  )
+  assert_logical(project$settings$get_entire_log, len = 1L, any.missing = FALSE)
+  assert_integerish(
+    project$settings$log_days,
+    len = 1L,
+    lower = 1L,
+    any.missing = FALSE
+  )
+  assert_logical(project$settings$log_drop_details,
+                 len = 1L,
+                 any.missing = FALSE)
+  assert_logical(project$settings$log_drop_exports,
+                 len = 1L,
+                 any.missing = FALSE)
+  assert_logical(project$settings$get_files, len = 1L, any.missing = FALSE)
+  assert_logical(project$settings$get_file_repository,
+                 len = 1L,
+                 any.missing = FALSE)
+  assert_logical(project$settings$original_file_names,
+                 len = 1L,
+                 any.missing = FALSE)
+  assert_logical(project$settings$add_default_datasets,
+                 len = 1L,
+                 any.missing = FALSE)
+  #internals --------------
+  assert_logical(project$internals$hard_reset, len = 1L, any.missing = FALSE)
+  assert_logical(project$internals$was_updated,
+                 len = 1L,
+                 any.missing = FALSE)
+  invisible(project)
+}
+#' @noRd
+assert_project_name <- function(project_name,
+                                allow_test_names = config$allow.test.names()) {
+  if (grepl("[a-z]", project_name)) {
+    project_name <- toupper(project_name)
+    end_message <- paste0("`project_name` must be all caps!",
+                          " For example, try '{project_name}'")
+    cli_abort(end_message)
+  }
+  assert_env_name(project_name, max.chars = 31L, all_caps = TRUE)
+  if (project_name %in% c("CONFIG", "TEST")) {
+    cli_abort("`project_name` can't be '{project_name}'! Please choose again.")
+  }
+  if (startsWith(project_name, "CONFIG_")) {
+    cli_abort("`project_name` can't start with 'CONFIG_'! Please choose again.")
+  }
+  if (!allow_test_names && startsWith(project_name, "TEST_")) {
+    cli_abort("`project_name` can't start with 'TEST_'! Please choose again.")
+  }
+  project_name
+}
+#' @noRd
+test_setup_project <- function(project) {
+  project <- tryCatch(
+    expr = {
+      suppressWarnings({
+        assert_setup_project(project = project)
+      })
+    },
+    error = function(e) {
+      NULL
+    }
+  )
+  !is.null(project)
+}
+#' @noRd
+assert_project_details <- function(project_details, nrows = NULL) {
+  assert_data_frame(
+    x = project_details,
+    nrows = nrows,
+    ncols = length(BLANK_PROJECT_COLS)
+  )
+  assert_names(colnames(project_details), must.include = BLANK_PROJECT_COLS)
+  if (nrow(project_details) > 0L) {
+    project_details$project_name |>
+      lapply(function(project_name) {
+        assert_env_name(project_name, max.chars = 31L, all_caps = TRUE)
+      })
+    assert_names(project_details$project_name, type = "unique")
+  }
+  project_details
+}
+#' @noRd
+assert_project_path <- function(project_path) {
+  assert_path_for_output(x = project_path,
+                         overwrite = TRUE,
+                         extension = "RData")
+  assert_true(endsWith(basename(project_path), PROJECT_PATH_SUFFIX))
+}
+#' @noRd
+test_project_details <- function(project_details, nrows = NULL) {
+  project_details <- tryCatch(
+    expr = {
+      suppressWarnings({
+        assert_project_details(project_details = project_details, nrows = nrows)
+      })
+    },
+    error = function(e) {
+      NULL
+    }
+  )
+  !is.null(project_details)
+}
+#' @noRd
+test_openxlsx_style <- function(x) {
+  test_class(x, "Style") && identical(attr(class(x), "package"), "openxlsx")
+}
+#' @noRd
+test_env_name <- function(x, max.chars = 26L, all_caps = FALSE) {
+  x <- try_else_null({
+    suppressWarnings({
+      assert_env_name(x = x,
+                      max.chars = max.chars,
+                      all_caps = all_caps)
+    })
+  })
+  !is.null(x)
+}
+#' @noRd
+test_unique_character <- function(x) {
+  test_character(
+    x,
+    min.chars = 1L,
+    unique = TRUE,
+    min.len = 1L,
+    any.missing = FALSE
+  )
+}
