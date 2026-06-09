@@ -8,9 +8,8 @@ knitr::opts_chunk$set(
 # library(REDCapSync) # don't forget to load the package
 
 ## ----eval=F-------------------------------------------------------------------
-# user_cache_location <- rappdirs::user_cache_dir("R")
-# redcapsync_cache_location <- file.path(user_cache_location, "REDCapSync")
-# redcapsync_cache_location
+# redcapsync_cache_location <- tools::R_user_dir(package = "REDCapSync",
+#                                                which = "cache")
 # # launch the folder on your computer
 # utils::browseURL(redcapsync_cache_location)
 # # can modify with config options

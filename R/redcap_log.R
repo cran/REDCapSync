@@ -15,31 +15,7 @@ clean_redcap_log <- function(redcap_log, drop_exports = FALSE) {
   keep <- starts_with(match = LOG_ACTION_RECORDS,
                       vars = redcap_log$action[not_design_rows])
   record_rows <- not_design_rows[keep]
-  redcap_log$record_id[record_rows] <- gsub(
-    paste0(
-      "Update record",
-      "|",
-      "Delete record",
-      "|",
-      "Create record",
-      "|",
-      "[:(:]API[:):]",
-      "|",
-      "Auto",
-      "|",
-      "calculation",
-      "|",
-      "Lock/Unlock Record ",
-      "|",
-      " ",
-      "|",
-      "[:):]",
-      "|",
-      "[:(:]"
-    ),
-    "",
-    redcap_log$action[record_rows]
-  )
+  redcap_log$record_id[record_rows] <- redcap_log$record[record_rows]
   redcap_log$action_type[record_rows] <- redcap_log$action[record_rows] |>
     strsplit(" ") |>
     lapply(function(x) {
@@ -100,19 +76,20 @@ clean_redcap_log <- function(redcap_log, drop_exports = FALSE) {
                                     start_match = LOG_DETAILS_REPOSITORY,
                                     label = "Repository")
   # end ------------
-  row_index <- which(is.na(redcap_log$record) &
-                       !is.na(redcap_log$record_id))
-  redcap_log$record[row_index] <- redcap_log$record_id[row_index]
-  row_index <- which(!is.na(redcap_log$record) &
-                       is.na(redcap_log$record_id))
-  redcap_log$action_type[row_index] <- "Users"
   redcap_log$record_id <- NULL
+  ignore <- which(redcap_log$action_type == "Update" & is.na(redcap_log$record))
+  redcap_log$action_type[ignore] <- "No Changes"
+  ignore <- which(is.na(redcap_log$action_type) &
+                    (is.na(redcap_log$record) | redcap_log$record == "") &
+                    (is.na(redcap_log$details) | redcap_log$details == "") &
+                    (is.na(redcap_log$action) | redcap_log$action == ""))
+  redcap_log$action_type[ignore] <- "No Changes"
   redcap_log$username[which(redcap_log$username == "[survey respondent]")] <- NA
   cannot_label_rows <- which(is.na(redcap_log$action_type))
   if (length(cannot_label_rows) > 0L) {
     warning_about_unlabelled_log <- paste0(
       "Some log elements could not be labelled... Report to issues page \n",
-      "    `x <- project$redcap$log[which(is.na(redcap_log$action_type)), ]`"
+      "`project$redcap$log[which(is.na(project$redcap$log$action_type)), ]`"
     )
     cli_alert_warning(warning_about_unlabelled_log)
   }
@@ -124,6 +101,7 @@ clean_redcap_log <- function(redcap_log, drop_exports = FALSE) {
   }
   new_order <- order(redcap_log$timestamp, decreasing = TRUE)
   redcap_log <- unique(redcap_log[new_order, ])
+  rownames(redcap_log) <- NULL
   redcap_log
 }
 #' @noRd
@@ -172,9 +150,7 @@ get_interim_log <- function(project) {
   interim_log
 }
 #' @noRd
-analyze_log <- function(interim_log, id_col) {
-  # check log interim
-  #assert_log?
+analyze_log <- function(interim_log, project) {
   log_changes <- list(
     hard_reset = FALSE,
     refresh_metadata = FALSE,
@@ -192,6 +168,7 @@ analyze_log <- function(interim_log, id_col) {
     length_comment_records = 0L
   )
   if (nrow(interim_log) > 0L) {
+    # assert_log?
     # interim_log timestamp ? NULL
     maybe_metadata <- interim_log$action_type[which(is.na(interim_log$record))]
     # inclusion
@@ -216,31 +193,32 @@ analyze_log <- function(interim_log, id_col) {
       log_list <- split(interim_log_data, interim_log_data$action_type)
       log_changes$comment_records <- unique(log_list$Comment$record)
       log_changes$deleted_records <- unique(log_list$Delete$record)
+      created_records <- unique(log_list$Create$record)
       log_changes$updated_records <- log_changes$deleted_records |>
-        append(log_list$Create$record) |>
+        append(created_records) |>
         append(log_list$Update$record) |>
         unique()
-      update_list <- log_list$Update$details |>
-        str_replace_all(" = '[^']*'", "") |>
-        strsplit(", ")
-      names(update_list) <- log_list$Update$record
-      if (length(update_list) > 0L) {
-        log_changes$renamed_records <-  update_list |>
+      if (length(log_list$Update$details) > 0L) {
+        keep_updates <- log_list$Update$details |>
+          str_replace_all(" = '[^']*'", "") |>
+          strsplit(", ") |>
           lapply(function(detail) {
-            id_col %in% detail
+            project$metadata$id_col %in% detail
           }) |>
           unlist() |>
-          which() |>
-          names() |>
-          unique()
+          which()
+        renamed_records <- log_list$Update$record[keep_updates] |> unique()
+        if (length(renamed_records) > 0L) {
+          log_changes$renamed_records <-  renamed_records
+        }
       }
       log_changes$length_deleted_records <- length(log_changes$deleted_records)
       log_changes$length_updated_records <- length(log_changes$updated_records)
       log_changes$length_renamed_records <- length(log_changes$renamed_records)
       log_changes$length_comment_records <- length(log_changes$comment_records)
       log_changes$refresh_data <- (log_changes$length_deleted_records > 0L) ||
-        (log_changes$length_updated_records > 0L)
-      log_changes$hard_reset <- log_changes$length_renamed_records > 0L
+        (log_changes$length_updated_records > 0L) ||
+        (log_changes$length_renamed_records > 0L)
     }
   }
   log_changes
@@ -259,18 +237,6 @@ log_change_messages <- function(log_changes, max_print = 8L) {
   ) == 0L
   if (nothing_to_do) {
     cli_alert_success("Up to date already!")
-    return(invisible())
-  }
-  if (log_changes$length_renamed_records > 0L) {
-    cli_alert_info(paste(
-      "Renamed:",
-      ifelse(
-        log_changes$length_renamed_records > max_print,
-        paste(log_changes$length_renamed_records, "records"),
-        toString(log_changes$renamed_records)
-      )
-    ))
-    cli_alert_warning("Full update triggered: Records were renamed!")
     return(invisible())
   }
   if (log_changes$length_deleted_records > 0L) {
@@ -293,6 +259,16 @@ log_change_messages <- function(log_changes, max_print = 8L) {
       )
     ))
   }
+  if (log_changes$length_renamed_records > 0L) {
+    cli_alert_info(paste(
+      "Possibly Renamed:",
+      ifelse(
+        log_changes$length_renamed_records > max_print,
+        paste(log_changes$length_renamed_records, "records"),
+        toString(log_changes$renamed_records)
+      )
+    ))
+  }
   if (log_changes$length_comment_records > 0L) {
     cli_alert_info(paste(
       "Comments:",
@@ -306,7 +282,56 @@ log_change_messages <- function(log_changes, max_print = 8L) {
   invisible(NULL)
 }
 #' @noRd
-LOG_ACTION_EXPORTS <- c("Data export", "Download uploaded ")
+check_redcap_former_names <- function(record = NULL, project) {
+  renamed_log <- NULL
+  if (!is.null(get_redcap_log)) {
+    creation_time <- project$redcap$project_info$creation_time
+    log_begin_date <- as.Date(as.POSIXct(creation_time)) - 1L
+    renamed_log <- get_redcap_log(project = project,
+                                  log_begin_date = log_begin_date,
+                                  record = record)
+    # consider dropping anything prior to a delete
+  }
+  renamed_log
+}
+#' @noRd
+extract_log_all_names <- function(renamed_log, project) {
+  pattern <- paste0(project$metadata$id_col, "\\s*=\\s*'([^']+)'")
+  renamed_log$record |>
+    append(str_match(renamed_log$details, pattern = pattern)[, 2]) |>
+    unique() |>
+    drop_nas()
+}
+#' @noRd
+get_redcap_log_update <- function(records = NULL, project) {
+  output <- list(records = NULL, log = NULL)
+  while (length(records) > 0L) {
+    record <- records[1L]
+    records <- records[-1L]
+    output$records <- output$records |> append(record)
+    renamed_log <- record |> check_redcap_former_names(project)
+    if (nrow(renamed_log) > 0L) {
+      other_names <- renamed_log |>
+        extract_log_all_names(project) |>
+        drop_nas() |>
+        unique() |>
+        setdiff(output$records) |>
+        setdiff(records)
+      output$log <- output$log |> bind_rows(renamed_log)
+      if (length(other_names) > 0L) {
+        records <- records |> append(other_names)
+      }
+    }
+  }
+  if (is_something(output$log)) {
+    new_order <- order(output$log$timestamp, decreasing = TRUE)
+    output$log <- unique(output$log[new_order, ])
+    rownames(output$log) <- NULL
+  }
+  output
+}
+#' @noRd
+LOG_ACTION_EXPORTS <- c("Data export", "Download uploaded ", "PDF Export")
 #' @noRd
 LOG_DETAILS_EXPORTS <- c("Download ", "Export ")
 #' @noRd
@@ -316,21 +341,27 @@ LOG_ACTION_USERS <- c("Add user ",
                       "Edit user ",
                       "Rename user role",
                       "User assigned to role ",
-                      "User removed from user role")
+                      "User removed from user role",
+                      "Updated User Expiration ",
+                      "Update user ")
 #' @noRd
 LOG_DETAILS_COMMENTS <- c("Add field comment ",
                           "Edit field comment ",
                           "Delete field comment ")
 #' @noRd
 LOG_ACTION_RECORDS <- c("Create record ",
+                        "Create Response ",
                         "Delete record ",
+                        "Deleted Document ", # should look at files
                         "Lock/Unlock Record ",
-                        "Update record ")
+                        "Uploaded Document ",
+                        "Update record ",
+                        "Update Response")
 #' @noRd
 LOG_ACTION_NO_CHANGES <- c("Enable external module ",
                            "Disable external module ",
-                           "Modify configuration for external module ",
-                           "Update Response")
+                           "Lock/Unlock Record ", # should not need to refresh
+                           "Modify configuration for external module ")
 #' @noRd
 LOG_DETAILS_NO_CHANGES <- c("Add settings for automated survey invitations",
                             "Add/edit stop actions for survey",

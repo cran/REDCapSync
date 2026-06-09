@@ -200,7 +200,7 @@ test_that("sync_project will update if new", {
   row_existing <- which(project$data$text$record_id == "2")
   var_text_integer_update <- project$data$text$var_text_integer[row_update]
   var_text_integer_existing <- project$data$text$var_text_integer[row_existing]
-  log_changes <-  analyze_log(interim_log, id_col = project$metadata$id_col)
+  log_changes <-  analyze_log(interim_log, project)
   updated_records <- log_changes$updated_records
   expect_contains(updated_records, "50")
   expect_false("2" %in% updated_records)
@@ -218,13 +218,18 @@ test_that("sync_project will update if new", {
   new_data$text$var_text_integer[row_update] <- "99"
   new_var_text_integer <- new_data$text$var_text_integer[row_update]
   expect_true(new_var_text_integer != var_text_integer_update)
+  redcap_log_update <- list(
+    records = unique(interim_log$record),
+    log = NULL # can add test of this later
+  )
   # Mock the test_project_token to simulate successful connection
   local_mocked_bindings(
     test_project_token =  function(...) project,
     get_interim_log =  function(...) interim_log,
     get_redcap_data =  function(...) new_data,
     get_redcap_records = function(...) ordered_records,
-    due_for_sync = function(...) TRUE
+    due_for_sync = function(...) TRUE,
+    get_redcap_log_update = function(...) redcap_log_update
   )
   # Call sync_project_check with hard_reset = FALSE
   result <- sync_project(

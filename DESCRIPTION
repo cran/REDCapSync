@@ -1,6 +1,6 @@
 Package: REDCapSync
 Title: Encapsulated 'REDCap' Projects for Synchronized Data Pipelines
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Brandon", "Rose", , "thecodingdocs@gmail.com", role = c("cre", "aut", "cph"),
            comment = c(ORCID = "0009-0009-7813-1960")),
@@ -24,8 +24,8 @@ URL: https://github.com/thecodingdocs/REDCapSync,
         https://thecodingdocs.github.io/REDCapSync/
 BugReports: https://github.com/thecodingdocs/REDCapSync/issues
 Depends: R (>= 4.1)
-Imports: checkmate, cli, dplyr, hoardr, lubridate, openxlsx, R6,
-        readxl, redcapAPI, REDCapR, skimr, stats, stringr, utils
+Imports: checkmate, cli, dplyr, hoardr, lubridate, openxlsx2, R6,
+        readxl, redcapAPI, REDCapR, skimr, stats, stringr, tools, utils
 Suggests: keyring, knitr, listviewer, rmarkdown, spelling, testthat (>=
         3.3.0), withr
 VignetteBuilder: knitr
@@ -34,10 +34,10 @@ Config/testthat/edition: 3
 Encoding: UTF-8
 Language: en-US
 NeedsCompilation: no
-Packaged: 2026-05-18 03:19:43 UTC; brandonrose
+Packaged: 2026-06-09 00:31:14 UTC; brandonrose
 Author: Brandon Rose [cre, aut, cph] (ORCID:
     <https://orcid.org/0009-0009-7813-1960>),
   Natalie Goulett [ctb]
 Maintainer: Brandon Rose <thecodingdocs@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-05-21 12:40:02 UTC
+Date/Publication: 2026-06-09 14:10:02 UTC

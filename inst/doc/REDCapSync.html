@@ -350,9 +350,9 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <p>Getting started is as simple as 1.) setting your token, 2.) setting
 up a project, and 3.) running project$sync().</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># 1.) setting your token -------------------------------------------------------</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">Sys.setenv</span>(<span class="at">REDCAPSYNC_FIRST_PROJECT =</span> <span class="st">&quot;YoUrNevErShaReToken&quot;</span>)    <span class="co"># in console</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">Sys.setenv</span>(<span class="at">REDCAPSYNC_FIRST_PROJECT =</span> <span class="st">&quot;YoUrNevErShaReToken&quot;</span>) <span class="co"># in console</span></span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># or WAY BETTER put this in your .Renviron file...</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># REDCAPSYNC_FIRST_PROJECT = &#39;YoUrNevErShaReToken</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># REDCAPSYNC_FIRST_PROJECT = &#39;YoUrNevErShaReToken&#39;</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co"># Then save file, restart R session (`.rs.restartR()`) and library(REDCapSync)</span></span>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co"># 2.) setting up a project -----------------------------------------------------</span></span>
@@ -370,7 +370,7 @@ up a project, and 3.) running project$sync().</p>
 <span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co"># 3.) running project$sync() ---------------------------------------------------</span></span>
 <span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">sync</span>() </span>
 <span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">generate_dataset</span>(<span class="st">&quot;custom&quot;</span>, <span class="at">envir =</span> <span class="fu">globalenv</span>())        </span></code></pre></div>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">generate_dataset</span>(<span class="st">&quot;custom&quot;</span>, <span class="at">envir =</span> <span class="fu">globalenv</span>())       </span></code></pre></div>
 </div>
 <div id="setup-tokens" class="section level2">
 <h2>Setup tokens</h2>

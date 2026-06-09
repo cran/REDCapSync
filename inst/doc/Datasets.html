@@ -358,12 +358,15 @@ datasets by default: REDCapSync and REDCapSync_raw.</p>
 <span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
 <span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co"># send data in global environment</span></span>
 <span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">to_envir</span>(<span class="fu">globalenv</span>())</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a> </span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co"># save data in custom location</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">save</span>(<span class="at">dir_other =</span> save_dir)</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co"># open folder where file was saved</span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="fu">browseURL</span>(save_dir)</span></code></pre></div>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co"># preview file from temporary directory</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">preview</span>()</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a> </span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co"># save data in custom location</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">save</span>(<span class="at">dir_other =</span> save_dir)</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co"># open folder where file was saved</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="fu">browseURL</span>(save_dir)</span></code></pre></div>
 <p>You can also chain together certain functions… So this is the same as
 above.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>save_dir <span class="ot">&lt;-</span> <span class="fu">tempdir</span>() <span class="co"># replace with your intended folder</span></span>
@@ -450,9 +453,12 @@ with <code>project$save_dataset</code> or <code>project$sync</code>.</p>
 <span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co"># load all default</span></span>
 <span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">load_dataset</span>(<span class="st">&quot;REDCapSync&quot;</span>, <span class="at">envir =</span> <span class="fu">globalenv</span>()) <span class="co"># will send to global</span></span>
 <span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a></span>
-<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co"># can trigger saves with `project$save_datasets()` or default `project$sync()`</span></span>
-<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">save_datasets</span>()</span>
-<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">sync</span>()</span></code></pre></div>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">load_dataset</span>(<span class="st">&quot;males&quot;</span>)<span class="sc">$</span><span class="fu">preview</span>() <span class="co"># open temporary excel</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">load_dataset</span>(<span class="st">&quot;females&quot;</span>)<span class="sc">$</span><span class="fu">preview</span>() <span class="co"># open temporary excel</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co"># can trigger saves with `project$save_datasets()` or default `project$sync()`</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">save_datasets</span>()</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">sync</span>()</span></code></pre></div>
 
 
 

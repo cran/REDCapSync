@@ -23,6 +23,9 @@ knitr::opts_chunk$set(
 # # send data in global environment
 # dataset$to_envir(globalenv())
 # 
+# # preview file from temporary directory
+# dataset$preview()
+# 
 # # save data in custom location
 # dataset$save(dir_other = save_dir)
 # 
@@ -110,6 +113,9 @@ knitr::opts_chunk$set(
 # 
 # # load all default
 # project$load_dataset("REDCapSync", envir = globalenv()) # will send to global
+# 
+# project$load_dataset("males")$preview() # open temporary excel
+# project$load_dataset("females")$preview() # open temporary excel
 # 
 # # can trigger saves with `project$save_datasets()` or default `project$sync()`
 # project$save_datasets()

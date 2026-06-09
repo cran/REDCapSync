@@ -51,10 +51,8 @@ test_that("clean_redcap_log identifies record actions", {
   result <- clean_redcap_log(redcap_log)
   # Check that record_id was extracted and action_type was set
   expect_all_true(!is.na(result$action_type[1L:4L]))
-  expect_all_true(
-    result$action_type[1L:4L] %in%
-      c("Update", "Delete", "Create", "Lock/Unlock")
-  )
+  expect_identical(result$action_type[1L:4L],
+                   c("No Changes", "Create", "Delete", "Update"))
 })
 test_that("clean_redcap_log handles Manage/Design actions", {
   redcap_log <- data.frame(
@@ -182,7 +180,6 @@ test_that("redcap_log_labeller works!", {
 test_that("analyze_log works!", {
   project_name <- "TEST_CLASSIC"
   project <- mock_test_project(project_name)$.internal
-  id_col <- project$metadata$id_col
   interim_log <- data.frame(
     timestamp = as.character(Sys.time()),
     username = "u1231",
@@ -192,7 +189,7 @@ test_that("analyze_log works!", {
     action_type = "Create",
     stringsAsFactors = FALSE
   )
-  expect_identical(analyze_log(interim_log, id_col)$length_updated_records, 1L)
+  expect_identical(analyze_log(interim_log, project)$length_updated_records, 1L)
   interim_log <- data.frame(
     timestamp = as.character(Sys.time()),
     username = "u1231",
@@ -202,7 +199,7 @@ test_that("analyze_log works!", {
     action_type = c("Create", "Update"),
     stringsAsFactors = FALSE
   )
-  expect_identical(analyze_log(interim_log, id_col)$length_updated_records, 1L)
+  expect_identical(analyze_log(interim_log, project)$length_updated_records, 1L)
   interim_log <- data.frame(
     timestamp = as.character(Sys.time()),
     username = "u1231",
@@ -212,7 +209,7 @@ test_that("analyze_log works!", {
     action_type = "Delete",
     stringsAsFactors = FALSE
   )
-  log_changes <- analyze_log(interim_log, id_col)
+  log_changes <- analyze_log(interim_log, project)
   expect_identical(log_changes$length_updated_records, 1L)
   expect_identical(log_changes$length_deleted_records, 1L)
   expect_identical(log_changes$updated_records, "99")
@@ -228,7 +225,7 @@ test_that("analyze_log works!", {
     action_type = "Metadata Change Major",
     stringsAsFactors = FALSE
   )
-  expect_true(analyze_log(interim_log, id_col)$refresh_metadata)
+  expect_true(analyze_log(interim_log, project)$refresh_metadata)
   interim_log <- data.frame(
     timestamp = as.character(Sys.time()),
     username = "u1231",
@@ -238,7 +235,7 @@ test_that("analyze_log works!", {
     action_type = "Metadata Change Minor",
     stringsAsFactors = FALSE
   )
-  expect_true(analyze_log(interim_log, id_col)$refresh_metadata)
+  expect_true(analyze_log(interim_log, project)$refresh_metadata)
 })
 # log_change_messages (Internal)
 test_that("log_change_messages works!", {
@@ -264,7 +261,7 @@ test_that("log_change_messages works!", {
   log_changes$refresh_metadata <- FALSE
   log_changes$renamed_records <- "1c"
   log_changes$length_renamed_records <- 1L
-  expect_message(log_change_messages(log_changes), "Full update triggered")
+  expect_message(log_change_messages(log_changes), "Possibly Renamed")
   log_changes$renamed_records <- NULL
   log_changes$length_renamed_records <- 0L
   log_changes$length_comment_records <- 1L
@@ -311,4 +308,27 @@ test_that("generate_comment_table works!", {
   comment_table <- generate_comment_table(redcap_log = redcap_log_comments,
                                           only_most_recent = TRUE)
   comment_table
+})
+# get_redcap_log_update (Internal)
+test_that("get_redcap_log_update works", {
+  project <- mock_test_project("TEST_CLASSIC")$.internal
+  out <- get_redcap_log_update(records = NULL, project = project)
+  expect_null(out$records)
+  expect_null(out$log)
+  redcap_log <- data.frame(
+    timestamp = "2024-01-15 10:30:00",
+    username = "user1",
+    action = "Update record 123",
+    details = paste0(project$metadata$id_col, " = '456'"),
+    record = "123",
+    stringsAsFactors = FALSE
+  )
+  local_mocked_bindings(
+    get_redcap_log = function(...) redcap_log
+  )
+  out <- get_redcap_log_update(records = c("123"), project = project)
+  expect_identical(out$records, c("123", "456"))
+  expect_s3_class(out$log, "data.frame")
+  expect_identical(out$log$record, "123")
+  expect_identical(out$log$details, redcap_log$details)
 })

@@ -72,7 +72,7 @@ save_project_data_list <- function(data_list,
                                               project = data_list)
       }
       #check for conflicting name
-      link_col_list <- list("redcap_link")
+      link_col_list <- list(REDCAPSYNC_LINK_NAME)
       names(link_col_list) <- id_col
     }
   }
@@ -112,12 +112,19 @@ save_project_data_list <- function(data_list,
       key_cols_list = key_cols_list,
       file_name = dataset_details$file_name,
       header_df_list = header_df_list,
+      header_color = config$xlsx.header.color(),
+      header_font_size = config$xlsx.header.font.size(),
+      header_font_color = config$xlsx.header.font.color(),
+      body_font_size = config$xlsx.body.font.size(),
+      body_font_color = config$xlsx.body.font.color(),
+      font_name = config$xlsx.font.name(),
       overwrite = TRUE
     )
   }
   data_list$dataset_details <- retained_details
   invisible(data_list)
 }
+REDCAPSYNC_LINK_NAME <- "redcapsync_link_name_zzz"
 #' @noRd
 save_project_datasets <- function(project, hard_reset = FALSE) {
   assert_setup_project(project)
