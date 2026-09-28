@@ -280,3 +280,59 @@ test_unique_character <- function(x) {
     any.missing = FALSE
   )
 }
+#' @noRd
+assert_data_func <- function(data_func) {
+  if (!is_something(data_func)) {
+    warning("if no `data_func` provided, then field only added to metadata",
+            immediate. = TRUE)
+  } else {
+    func_temp <- "data_func = function(project){...YOUR FUNCTION...}"
+    if (!is.function(data_func)) {
+      stop("`data_func` must be a function ... ", func_temp)
+    }
+    if (!any("project" %in% names(formals(data_func))) ||
+          !all(names(formals(data_func)) %in% "project")) {
+      stop(
+        "`data_func` must have \"project\" as only paramter...",
+        func_temp # add vignettte
+      )
+    }
+    data_func <- clean_function(data_func)
+  }
+  invisible(data_func)
+}
+#' @noRd
+assert_transformation <- function(transformation) {
+  if (!is_something(transformation)) {
+    warning("No `transformation` provided.",
+            immediate. = TRUE)
+    return(invisible(transformation))
+  }
+  func_temp <- "transformation = function(project){...YOUR FUNCTION...}"
+  if (!is.function(transformation)) {
+    stop("`transformation` must be a function ... ", func_temp)
+  }
+  if (!any("project" %in% names(formals(transformation))) ||
+        !all(names(formals(transformation)) %in% "project")) {
+    stop(
+      "`transformation` must have \"project\" as only paramter...",
+      func_temp # add vignettte
+    )
+  }
+  transformation <- clean_function(transformation)
+  invisible(transformation)
+}
+#' @noRd
+test_transformation <- function(transformation) {
+  transformation <- tryCatch(
+    expr = {
+      suppressWarnings({
+        assert_transformation(transformation)
+      })
+    },
+    error = function(e) {
+      NULL
+    }
+  )
+  is_something(transformation)
+}

@@ -1,5 +1,15 @@
 #' @noRd
 labelled_to_raw_form <- function(form, project) {
+  if (project$metadata$has_coding_conflicts) {
+    cli_abort(
+      paste0(
+        "You cannot use labelled = 'TRUE' because you have a coding conflict ",
+        "in your data dictionary... Try {.topic REDCapSync::setup_project} ",
+        "with labelled = 'FALSE'. The conflicts are from: ",
+        "{toString(project$metadata$coding_conflict_field_names)}"
+      )
+    )
+  }
   form <- all_character_cols(form)
   if (nrow(form) == 0L) {
     return(form)
@@ -27,16 +37,6 @@ labelled_to_raw_form <- function(form, project) {
 }
 #' @noRd
 raw_to_labelled_form <- function(form, project) {
-  if (project$metadata$has_coding_conflicts) {
-    cli_abort(
-      paste0(
-        "You cannot use labelled = 'TRUE' because you have a coding conflict ",
-        "in your data dictionary... Try {.topic REDCapSync::setup_project} ",
-        "with labelled = 'FALSE'. The conflicts are from: ",
-        "{toString(project$metadata$coding_conflict_field_names)}"
-      )
-    )
-  }
   form <- all_character_cols(form)
   if (nrow(form) == 0L) {
     return(form)
@@ -249,7 +249,7 @@ get_min_dates <- function(data_list) {
       existing_fields <- intersect(names(form), date_vector)
       if (length(existing_fields) > 0L) {
         df_subset <- form[, c(id_cols[1L], existing_fields), drop = FALSE]
-        df_long <- stats::reshape(
+        df_long <- reshape(
           df_subset,
           varying = existing_fields,
           v.names = "date",
@@ -267,7 +267,7 @@ get_min_dates <- function(data_list) {
   }
   combined <- do.call(rbind, all_dates)
   combined <- combined[!is.na(combined$date), ]
-  min_dates <- stats::aggregate(date ~ record_id, data = combined, FUN = min)
+  min_dates <- aggregate(date ~ record_id, data = combined, FUN = min)
   min_dates
 }
 #' @noRd

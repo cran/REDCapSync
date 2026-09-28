@@ -53,10 +53,28 @@
 #' @param dataset_name Character. Name of the dataset to generate or load.
 #'   If the dataset already exists in the project, the existing definition is
 #'   reused.
-#' @param transformation_type Character. Data transformation strategy: "default"
-#'   (preferred merged output), "none" (raw data structure), or
-#'   "merge_non_repeating" (merge only non-repeating forms). Default is
-#'   "default".
+#' @param transformation_type Character. Data transformation strategy:
+#'   \itemize{
+#'     \item \code{"default"}: Preferred output. Merges all
+#'       non-repeating forms into a single record-level dataset and merges
+#'       repeating forms to the right, retaining all repeat instances.
+#'     \item \code{"none"}: Return the raw REDCap data structure, with
+#'       non-repeating and repeating forms kept as separate datasets.
+#'     \item \code{"merged_simple"}: Merge all non-repeating forms into a
+#'       single record-level dataset. Repeating forms remain separate
+#'       without merged data added to the right (like `default`).
+#'     \item \code{"wide_first"}: Merge all non-repeating forms and retain
+#'       only the first instance of each repeating form, producing one row
+#'       per record.
+#'     \item \code{"wide_all"}: Merge all non-repeating forms and reshape
+#'       all instances of repeating forms to a wide format, producing one
+#'       row per record. Repeating field names are suffixed with the form
+#'       name and repeat instance.
+#'   }
+#'   Default is \code{"default"}. Transformations types `none`,
+#'   `merged_simple`, and `default` are upload compatible.
+#'   Transformations types `wide_first` and `wide_all` widen the data by adding
+#'   new variables and are therefore not upload compatible.
 #' @param merge_form_name Character. Name used for merged non-repeating records.
 #'   Default is "merged".
 #' @param filter_field Character. Field used for filtering the dataset.
@@ -96,8 +114,8 @@
 #'   `FALSE`.
 #' @param annotate_from_log Logical. Annotate metadata and records using the
 #'   change log. Default is `TRUE`.
-#' @param include_comments Logical. Include REDCap comments. Default is
-#'   `FALSE`.
+#' @param include_comments Logical. Include field comments. Default is `TRUE`.
+#' @param include_added_fields Logical. Include added fields. Default is `TRUE`.
 #' @param with_links Logical. Include hyperlinks in Excel exports. Default is
 #'   `TRUE`.
 #' @param separate Logical. Save each form as a separate file instead of a
@@ -201,7 +219,8 @@ REDCapSyncDataset <- R6Class(
                           include_records = TRUE,
                           include_log = FALSE,
                           annotate_from_log = TRUE,
-                          include_comments = FALSE) {
+                          include_comments = FALSE,
+                          include_added_fields = TRUE) {
       assert_setup_project(project) # message about internal?
       dataset <- NULL
       if (dataset_name %in% names(project$datasets)) {
@@ -233,7 +252,8 @@ REDCapSyncDataset <- R6Class(
           include_records = include_records,
           include_log = include_log,
           annotate_from_log = annotate_from_log,
-          include_comments = include_comments
+          include_comments = include_comments,
+          include_added_fields = include_added_fields
         )
       }
       self$data <- dataset$data
@@ -299,7 +319,7 @@ REDCapSyncDataset <- R6Class(
         dir_other = dir_other,
         file_name = file_name
       )
-      # would be nice if updated supclass project in future version
+      # would be nice if updated superclass project in future version
       invisible(data_list)
     },
     #' @description export dataset to envir of your choosing. Keep in mind

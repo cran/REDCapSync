@@ -170,7 +170,8 @@ generate_project_dataset <- function(project,
                                      include_records = TRUE,
                                      include_log = FALSE,
                                      annotate_from_log = TRUE,
-                                     include_comments = FALSE) {
+                                     include_comments = FALSE,
+                                     include_added_fields = TRUE) {
   assert_setup_project(project)
   id_col <- project$metadata$id_col
   if (missing(dataset_name)) {
@@ -181,22 +182,38 @@ generate_project_dataset <- function(project,
   assert_choice(date_handling, choices = DATE_HANDLING_CHOICES)
   # add more asserts
   # function to do asserts here
-  assert_choice(transformation_type, TRANFORMATION_TYPES)
+  assert_choice(transformation_type, TRANSFORMATION_TYPES)
   data_list <- NULL
-  # add new fields and calculate them
-  if (labelled != project$settings$labelled) {
-    if (project$settings$labelled) {
-      project <- labelled_to_raw_project(project)
-    } else {
-      project <- raw_to_labelled_project(project)
-    }
-  }
+  project <- render_transformation(project)
   data_list$metadata <- project$metadata
   data_list$data <- project$data
   data_list$redcap <- project$redcap
   data_list$links <- project$links
   record_sum <- project$record_summary
   data_list <- metadata_add_default_cols(data_list)
+  if (labelled != project$settings$labelled) {
+    if (project$settings$labelled) {
+      project <- labelled_to_raw_project(project)
+    } else {
+      project <- raw_to_labelled_project(project)
+    }
+    data_list$metadata <- project$metadata
+    data_list$data <- project$data
+    data_list$redcap <- project$redcap
+    data_list$links <- project$links
+    record_sum <- project$record_summary
+    data_list <- metadata_add_default_cols(data_list)
+  }
+  if (is_something(project$transformation$fields) &&
+        include_added_fields) {
+    # what if you want to keep old and new?
+    # should there be include_added_fields param?
+    data_list <- add_fields_to_data_list(
+      data_list = data_list,
+      transformation = project$transformation
+    ) # add check for changes here? param
+  }
+  # what if field_names, form_names not part of filter vars?
   data_list$data <- filter_data_list(
     data_list = data_list,
     field_names = field_names,
@@ -208,18 +225,44 @@ generate_project_dataset <- function(project,
   )
   #cache or store these to make it faster?
   if (transformation_type == "default") {
-    data_list <- merge_non_repeating(
+    data_list <- transform_merged(
       data_list = data_list,
       merge_form_name = merge_form_name,
       merge_to_rep = TRUE
     )
   }
-  if (transformation_type == "merge_non_repeating") {
-    data_list <- merge_non_repeating(
+  if (transformation_type == "merged_simple") {
+    data_list <- transform_merged(
       data_list = data_list,
       merge_form_name = merge_form_name,
       merge_to_rep = FALSE
     )
+  }
+  if (transformation_type == "wide_firsts") {
+    if (data_list$metadata$is_longitudinal) {
+      cli_alert_warning(paste0(
+        "Unable to use `wide_firsts` transformation_type for longitudinal",
+        " for this version of REDCapSync. See future versions. Using `default`."
+      ))
+    } else {
+      data_list <- transform_wide_firsts(
+        data_list = data_list,
+        merge_form_name = merge_form_name
+      )
+    }
+  }
+  if (transformation_type == "wide_all") {
+    if (data_list$metadata$is_longitudinal) {
+      cli_alert_warning(paste0(
+        "Unable to use `wide_all` transformation_type for longitudinal",
+        " for this version of REDCapSync. See future versions. Using `default`."
+      ))
+    } else {
+      data_list <- transform_wide_all(
+        data_list = data_list,
+        merge_form_name = merge_form_name
+      )
+    }
   }
   data_list$data <- deidentify_data_list(
     data_list = data_list,
@@ -258,12 +301,12 @@ generate_project_dataset <- function(project,
       )
       data_list$metadata$fields <- annotate_fields(
         data_list = data_list,
-        annotate = TRUE,
+        annotate = transformation_type != "wide_all",
         drop_blanks = drop_blanks || !is.null(field_names)
       )
       data_list$metadata$choices <- annotate_choices(
         data_list = data_list,
-        annotate = TRUE,
+        annotate = transformation_type != "wide_all",
         drop_blanks = drop_blanks || !is.null(field_names)
       )
     }
@@ -341,6 +384,7 @@ generate_project_dataset <- function(project,
     include_log = include_log,
     annotate_from_log = annotate_from_log,
     include_comments = include_comments,
+    include_added_fields = include_added_fields,
     with_links = NULL,
     separate = NULL,
     use_csv = NULL,
@@ -390,7 +434,8 @@ load_project_dataset <- function(project, dataset_name) {
     include_users = dataset_details$include_users,
     include_log = dataset_details$include_log,
     annotate_from_log = dataset_details$annotate_from_log,
-    include_comments = dataset_details$include_comments
+    include_comments = dataset_details$include_comments,
+    include_added_fields = dataset_details$include_added_fields
   )
   invisible(data_list)
 }
@@ -419,6 +464,7 @@ add_project_dataset <- function(project,
                                 include_log = FALSE,
                                 annotate_from_log = TRUE,
                                 include_comments = TRUE,
+                                include_added_fields = TRUE,
                                 with_links = TRUE,
                                 separate = FALSE,
                                 use_csv = FALSE,
@@ -464,6 +510,7 @@ add_project_dataset <- function(project,
     include_log = include_log,
     annotate_from_log = annotate_from_log,
     include_comments = include_comments,
+    include_added_fields = include_added_fields,
     with_links = with_links,
     separate = separate,
     use_csv = use_csv,
@@ -488,6 +535,18 @@ add_project_dataset <- function(project,
   project$datasets[[dataset_name]] <- dataset_list_new
   project$record_summary[[dataset_name]] <- FALSE
   invisible(project)
+}
+#' @noRd
+reset_project_datasets <- function(project) {
+  for (dataset_name in names(project$datasets)) {
+    project$record_summary[[dataset_name]] <- FALSE
+    include_fields <- project$datasets[[dataset_name]]$include_added_fields
+    if (is.null(include_fields)) {
+      include_fields <- dataset_name != "REDCapSync_raw"
+    }
+    project$datasets[[dataset_name]]$include_added_fields <- include_fields
+  }
+  project
 }
 #' @noRd
 deidentify_data_list <- function(data_list,
@@ -753,9 +812,9 @@ clean_data_list <- function(data_list,
   invisible(data_forms)
 }
 #' @noRd
-merge_non_repeating <- function(data_list,
-                                merge_form_name,
-                                merge_to_rep = FALSE) {
+transform_merged <- function(data_list,
+                             merge_form_name,
+                             merge_to_rep = FALSE) {
   forms_transformed <- data_list$metadata$forms
   form_colnames <- colnames(data_list$metadata$forms)
   is_longitudinal <- "repeating_via_events" %in% form_colnames
@@ -867,6 +926,110 @@ merge_non_repeating <- function(data_list,
   data_list
 }
 #' @noRd
+transform_wide_all <- function(data_list, merge_form_name) {
+  data_list <- transform_merged(
+    data_list = data_list,
+    merge_form_name = merge_form_name
+  )
+  forms <- data_list$metadata$forms
+  fields <- data_list$metadata$fields
+  choices <- data_list$metadata$choices
+  repeating_forms <- forms$form_name[which(forms$repeating)]
+  id_col <- data_list$metadata$id_col
+  merged <- data_list$data$merged
+  for (repeating_form in repeating_forms) {
+    FORM <- data_list$data[[repeating_form]]
+    if (is_something(FORM)) {
+      FORM$redcap_repeat_instrument <- NULL
+      id <- FORM[[id_col]]
+      redcap_repeat_instance <- FORM$redcap_repeat_instance |>
+        unique() |>
+        as.integer() |>
+        sort() |>
+        as.character()
+      field_names <- setdiff(names(FORM), c(id_col, "redcap_repeat_instance"))
+      ids <- unique(id)
+      out <- list()
+      out[[id_col]] <- ids
+      for (i in redcap_repeat_instance) {
+        rows <- match(ids, id[redcap_repeat_instance == i])
+        for (field_name in field_names) {
+          out[[paste0(field_name, "_", repeating_form, "_", i)]] <-
+            FORM[[field_name]][redcap_repeat_instance == i][rows]
+        }
+      }
+      FORM <- as.data.frame(out, stringsAsFactors = FALSE)
+      merged <- merged |> merge(FORM, by = id_col, all = TRUE)
+    }
+    fields_subset <- fields[which(fields$form_name == repeating_form), ]
+    new_fields <- redcap_repeat_instance |> lapply(function(i) {
+      fields_subset$field_name <- fields_subset$field_name |>
+        paste0("_", repeating_form, "_", i)
+      fields_subset$form_name <- merge_form_name
+      fields_subset
+    }) |>
+      bind_rows()
+    fields <- fields[which(fields$form_name != repeating_form), ] |>
+      bind_rows(new_fields)
+    rows <- which(choices$form_name == repeating_form &
+                    choices$field_name %in% fields_subset$field_name)
+    choices_subset <- choices[rows, ]
+    choices_subset$form_name <- merge_form_name
+    new_choices <- redcap_repeat_instance |> lapply(function(i) {
+      choices_subset$field_name <- choices_subset$field_name |>
+        paste0("_", repeating_form, "_", i)
+      choices_subset
+    }) |>
+      bind_rows()
+    rows <- which(!(choices$form_name == repeating_form &
+                      choices$field_name %in% fields_subset$field_name))
+    choices <- choices[rows, ] |> bind_rows(new_choices)
+    data_list$data[[repeating_form]] <- NULL
+  }
+  data_list$data$merged <- merged
+  forms <- forms[which(forms$form_name == merge_form_name), ]
+  original_form_name <- repeating_forms |> paste0(collapse = " | ")
+  forms$original_form_name <- forms$original_form_name |>
+    paste0(original_form_name)
+  data_list$metadata$forms <- forms
+  data_list$metadata$fields <- fields
+  data_list$metadata$choices <- choices
+  data_list$metadata$repeating_forms_events <- NULL
+  data_list
+}
+#' @noRd
+transform_wide_firsts <- function(data_list, merge_form_name) {
+  data_list <- transform_merged(
+    data_list = data_list,
+    merge_form_name = merge_form_name
+  )
+  forms <- data_list$metadata$forms
+  repeating_forms <- forms$form_name[which(forms$repeating)]
+  id_col <- data_list$metadata$id_col
+  merged <- data_list$data$merged
+  for (repeating_form in repeating_forms) {
+    FORM <- data_list$data[[repeating_form]]
+    if (is_something(FORM)) {
+      FORM <- FORM[!duplicated(FORM[[id_col]]), , drop = FALSE]
+      FORM$redcap_repeat_instrument <- NULL
+      new_inst_name <- paste0("redcap_repeat_instance_", repeating_form)
+      col_to_change <- which(colnames(FORM) == "redcap_repeat_instance")
+      colnames(FORM)[col_to_change] <- new_inst_name
+      FORM$redcap_repeat_instance <- NULL
+      merged <- merged |> merge(FORM, by = id_col, all = TRUE)
+    }
+    data_list$data[[repeating_form]] <- NULL
+  }
+  data_list$data$merged <- merged
+  forms <- forms[which(forms$form_name == merge_form_name), ]
+  original_form_name <- repeating_forms |> paste0(collapse = " | ")
+  forms$original_form_name <- forms$original_form_name |>
+    paste0(original_form_name)
+  data_list$metadata$forms <- forms
+  data_list$metadata$repeating_forms_events <- NULL
+  data_list
+}
+#' @noRd
 fields_to_choices <- function(fields) {
   fields <- fields[which(fields$field_type %in% REDCAP_FACTOR_FIELDS), ]
   fields <- fields[which(!is.na(fields$select_choices_or_calculations)), ]
@@ -888,11 +1051,14 @@ fields_to_choices <- function(fields) {
       )
     )
   }
+  label_names <- choices$name
+  blank_name_rows <- which(label_names == "")
+  label_names[blank_name_rows] <- choices$code[blank_name_rows]
   choices$label <- paste(choices$form_name,
                          "-",
                          choices$field_label,
                          "-",
-                         choices$name)
+                         label_names)
   rownames(choices) <- NULL
   choices
 }
@@ -1253,7 +1419,11 @@ data_list_to_save <- function(data_list) {
   to_save_list
 }
 #' @noRd
-TRANFORMATION_TYPES <- c("default", "none", "merge_non_repeating")
+TRANSFORMATION_TYPES <- c("default",
+                          "none",
+                          "merged_simple",
+                          "wide_firsts",
+                          "wide_all")
 #' @noRd
 metadata_add_default_cols <- function(data_list) {
   fields <- data_list$metadata$fields
@@ -1296,6 +1466,12 @@ field_types_to_r <- function(fields) {
   field_types_r[which(is_num)] <- "numeric"
   field_types_r
 }
+FIELD_TYPES_R <- c("character",
+                   "factor",
+                   "date",
+                   "datetime",
+                   "integer",
+                   "numeric")
 #' @noRd
 REDCAP_FACTOR_FIELDS <- c("radio",
                           "yesno",
@@ -1428,7 +1604,8 @@ get_dataset_records <- function(project, dataset_name) {
     include_users = FALSE,
     include_log = FALSE,
     annotate_from_log = FALSE,
-    include_comments = FALSE
+    include_comments = FALSE,
+    include_added_fields = FALSE
   )
   data_list$records[[id_col]]
 }
@@ -1519,6 +1696,7 @@ add_default_datasets <- function(project,
     include_log = FALSE,
     annotate_from_log = FALSE,
     include_comments = TRUE,
+    include_added_fields = FALSE,
     with_links = with_links,
     separate = TRUE,
     use_csv = use_csv,
@@ -1544,6 +1722,7 @@ add_default_datasets <- function(project,
     include_log = FALSE,
     annotate_from_log = TRUE,
     include_comments = TRUE,
+    include_added_fields = TRUE,
     with_links = with_links,
     separate = FALSE,
     use_csv = use_csv,
@@ -1597,4 +1776,28 @@ read_dataset_from_file <- function(project, dataset_name, file_path) {
   }
   #check data not already there
   data_list
+}
+#' @noRd
+render_transformation <- function(project) {
+  assert_setup_project(project)
+  transformation <- project$transformation$custom
+  transformed <- NULL
+  if (is_something(transformation)) {
+    if (test_transformation(transformation)) {
+      environment(transformation) <- environment()
+      transformed <- try_else_null({
+        transformation(project = project)
+      })
+      if (!test_setup_project(transformed)) {
+        transformed <- NULL
+      }
+    }
+    if (is.null(transformed)) {
+      cli_alert_danger("Failed to render `transformation`")
+    }
+  }
+  if (is.null(transformed)) {
+    transformed <- project
+  }
+  transformed
 }

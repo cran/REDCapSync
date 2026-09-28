@@ -50,7 +50,7 @@ is_something <- function(thing, row_length = 0L) {
   if (the_length == 0L) {
     return(FALSE)
   }
-  if (the_length > 1L || is.list(thing)) {
+  if (the_length > 1L || is.list(thing) || is.function(thing)) {
     return(TRUE)
   }
   if (is.na(thing)) {
@@ -187,34 +187,38 @@ drop_if <- function(x, drops) {
 clean_env_names <- function(env_names,
                             silent = FALSE,
                             lowercase = TRUE) {
+  if (length(env_names) == 0L || is.null(env_names)) {
+    return(character(0L))
+  }
   cleaned_names <- character(length(env_names))
+  if (lowercase) {
+    env_names <- tolower(env_names)
+  }
   for (i in seq_along(env_names)) {
-    name <- env_names[i]
-    is_valid <- is_env_name(name, silent = TRUE)
-    if (is_valid) {
-      cleaned_name <- name
-    }
+    cleaned_name <- env_names[i]
+    is_valid <- is_env_name(cleaned_name, silent = TRUE)
     if (!is_valid) {
       if (!silent) {
-        message("Invalid environment name: '", name)
+        message("Invalid environment name: '", cleaned_name)
       }
-      cleaned_name <- gsub("__", "_", gsub(" ", "_", gsub("-", "", name)))
-    }
-    if (lowercase) {
-      cleaned_name <- tolower(cleaned_name)
-    }
-    if (cleaned_name %in% cleaned_names) {
-      if (!silent) {
-        message("Non-unique environment name: '",
-                name,
-                "', added numbers...")
+      cleaned_name <- trimws(gsub("[^A-Za-z0-9_]", " ", cleaned_name))
+      cleaned_name <- gsub("__", "_", gsub(" ", "_", cleaned_name))
+      is_valid <- is_env_name(cleaned_name, silent = TRUE)
+      if (!is_valid) {
+        cli_abort(paste0("Unable to convert name: ", cleaned_name))
       }
-      cleaned_name <- cleaned_name |>
-        paste0("_", max(length(which(cleaned_name %in% cleaned_names))) + 1L)
     }
     cleaned_names[i] <- cleaned_name
   }
+  cleaned_names <- make_unique(cleaned_names)
   cleaned_names
+}
+#' @noRd
+make_unique <- function(x) {
+  n <- ave(x, x, FUN = seq_along)
+  ifelse(duplicated(x) | duplicated(x, fromLast = TRUE),
+         paste0(x, "_", n),
+         x)
 }
 #' @noRd
 is_df_list <- function(x, strict = FALSE) {
@@ -317,12 +321,15 @@ split_choices <- function(x) {
   result <- gsub("\n", " | ", result)
   result <- result |>
     strsplit("[|]") |>
-    unlist() |>
-    str_split_fixed(",", 2L)
+    unlist()
+  if (any(!grepl(",", result))) {
+    cli_abort("split choice error: {x}")
+  }
+  result <- result |> str_split_fixed(",", 2L)
   check_length <- length(result[, 1L])
   choices_data <- data.frame(
     code = trimws(result[, 1L]),
-    name = trimws(result[, 2L]),
+    name = trimws(result[, 2L]), # is this risky? to trim ws if otherwise unique
     stringsAsFactors = FALSE
   )
   rownames(choices_data) <- NULL
@@ -335,9 +342,9 @@ split_choices <- function(x) {
   if (nrow(choices_data) != check_length) {
     cli_abort("split choice error: {x}")
   }
-  if (!all(nzchar(choices_data$name))) {
-    cli_abort("split choice error: {x}")
-  }
+  # if (!all(nzchar(choices_data$name))) {
+  #   cli_abort("split choice error: {x}")
+  # } # allow ""
   choices_data
 }
 #' @noRd

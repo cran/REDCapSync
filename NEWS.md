@@ -1,10 +1,33 @@
+# REDCapSync 0.2.0
+
+## New Features
+
+* New `add_fields` feature for derived fields and overwriting existing fields 
+* New `add_transformation` feature for prior to dataset generation
+* New `wide_firsts` and `wide_all` transformation types for non-longitudinal projects with repeating forms
+
+## Internal Changes
+
+* reconcile_version function will refresh datasets if package version changes
+* Excel sheets will have filters by default
+* if duplicate code names, only cause error for conversion back to raw values
+* add to repair_setup_project to account for version changes to datasets
+
+## Fixes
+* account for checkboxes, radio, and dropdown with no choice in dictionary 
+
+## In development 
+
+* Preparing RosyREDCap for CRAN submission
+* Preparing for R journal submission
+* Waiting for suggestions/issues on GitHub issues page(s)
 
 # REDCapSync 0.1.1
 
 ## Fixes
 
-* CRAN Policy fix that macOS requires "~/Library/Caches/org.R-project.R/R" not 
-"~/Library/Caches/R/REDCapSync"
+* CRAN Policy fix that macOS requires "/Library/Caches/org.R-project.R/R" not 
+"/Library/Caches/R/REDCapSync"
 * Fixed bad links for repeating instruments
 * Fixed incorrect log labeling for Create Response and Update Response
 * Accounting for renamed records in sync and previous log
@@ -13,7 +36,7 @@
 ## Internal Changes
 
 * Datasets now have a preview file function `dataset$preview()`
-* switched to openxlsx2 internally for Sustainability
+* switched to openxlsx2 internally for sustainability
 * config (experimental) accounts for new xlsx options
 
 ***************************************************************************

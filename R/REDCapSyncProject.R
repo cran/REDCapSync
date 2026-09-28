@@ -116,9 +116,28 @@
 #'
 #' @param dataset_name Character. Name of the dataset configuration to create,
 #' load, or reference.
-#' @param transformation_type Character. How to transform data: "default"
-#' (merge non-repeating then add to repeating), "none" (no transformation), or
-#' "merge_non_repeating" (merge non-repeating only). Default is "default".
+#' @param transformation_type Character. Data transformation strategy:
+#'   \itemize{
+#'     \item \code{"default"}: Preferred output. Merges all
+#'       non-repeating forms into a single record-level dataset and merges
+#'       repeating forms to the right, retaining all repeat instances.
+#'     \item \code{"none"}: Return the raw REDCap data structure, with
+#'       non-repeating and repeating forms kept as separate datasets.
+#'     \item \code{"merged_simple"}: Merge all non-repeating forms into a
+#'       single record-level dataset. Repeating forms remain separate
+#'       without merged data added to the right (like `default`).
+#'     \item \code{"wide_first"}: Merge all non-repeating forms and retain
+#'       only the first instance of each repeating form, producing one row
+#'       per record.
+#'     \item \code{"wide_all"}: Merge all non-repeating forms and reshape
+#'       all instances of repeating forms to a wide format, producing one
+#'       row per record. Repeating field names are suffixed with the form
+#'       name and repeat instance.
+#'   }
+#'   Default is \code{"default"}. Transformations types `none`,
+#'   `merged_simple`, and `default` are upload compatible.
+#'   Transformations types `wide_first` and `wide_all` widen the data by adding
+#'   new variables and are therefore not upload compatible.
 #' @param merge_form_name Character. Name for the merged non-repeating form.
 #' Default is "merged".
 #' @param filter_field Character. Field name to filter dataset on.
@@ -156,6 +175,7 @@
 #' @param annotate_from_log Logical. Annotate data using the REDCap log. Default
 #' is `TRUE`.
 #' @param include_comments Logical. Include field comments. Default is `TRUE`.
+#' @param include_added_fields Logical. Include added fields. Default is `TRUE`.
 #' @param hard_reset Logical. Overwrite existing dataset files. Default is
 #' `FALSE`.
 #' @param with_links Logical. Include hyperlinks in Excel exports. Default is
@@ -167,6 +187,24 @@
 #' folder).
 #' @param file_name Character. Dataset file name (default is
 #' `<project_name>_<dataset_name>`).
+#' @param field_name Character. Field name to be used for added field.
+#' @param form_name Character. Form name to be used for added field. Must be an
+#' existing REDCap form/instrument.
+#' @param field_type_r Character. One of "character", "factor", "date",
+#' "datetime", "integer", or  "numeric" . Default is `character`.
+#' @param field_label Character. Field label for added field.
+#' @param field_choices Character vector. Choices if `field_type_r` is "factor".
+#' @param field_note Character Field note for added field.
+#' @param identifier Character. Either "", or "y" per REDCap data dictionary.
+#' @param units Character. To be used for plots and tables.
+#' @param data_func Function. Must have "project" as the only parameter. Must
+#' return a vector of the field (same length and order as form).
+#' Example, `data_func = function(project) {...}`.
+#' @param transformation Function. Must have "project" as the only
+#' parameter. Allows any custom transformation to be run for before each
+#' `project$generate_dataset(...)` independently of `transformation_type`. Must
+#' return project object. Example,
+#' `transformation = function(project) {...}`.
 #' @param envir Environment to assign dataset objects. Default is `NULL`.
 #' @param form Character. REDCap form/instrument name, e.g., "survey_one".
 #' @param link_type Character. REDCap link type: "base", "home", "record_home",
@@ -268,6 +306,32 @@ REDCapSyncProject <- R6Class(
         )
       }
       private$project$data
+    },
+    #' @field datasets Read-only named list for datasets.
+    #' See public methods for [REDCapSyncProject].
+    datasets = function(value) {
+      if (!missing(value)) {
+        cli_alert_danger(
+          paste0(
+            "`datasets` is read only. To change REDCap datasets either use",
+            "`project$add_dataset()` and/or `project$generate_dataset()`"
+          )
+        )
+      }
+      private$project$datasets
+    },
+    #' @field transformation Read-only list for fields and transformations.
+    #' See public methods for [REDCapSyncProject].
+    transformation = function(value) {
+      if (!missing(value)) {
+        cli_alert_danger(
+          paste0(
+            "`transformation` is read only. To change REDCap datasets either ",
+            "use `project$add_field()` and/or `project$add_transformation()`"
+          )
+        )
+      }
+      private$project$transformation
     },
     #' @field metadata Read-only named list with REDCap metadata. See
     #' public methods for [REDCapSyncProject].
@@ -386,6 +450,7 @@ REDCapSyncProject <- R6Class(
                            include_log = FALSE,
                            annotate_from_log = TRUE,
                            include_comments = TRUE,
+                           include_added_fields = TRUE,
                            with_links = TRUE,
                            separate = FALSE,
                            use_csv = FALSE,
@@ -417,6 +482,7 @@ REDCapSyncProject <- R6Class(
         include_log = include_log,
         annotate_from_log = annotate_from_log,
         include_comments = include_comments,
+        include_added_fields = include_added_fields,
         with_links = with_links,
         separate = separate,
         use_csv = use_csv,
@@ -424,6 +490,57 @@ REDCapSyncProject <- R6Class(
         file_name = file_name,
         hard_reset = hard_reset
       )
+      invisible(self)
+    },
+    #' @description  Add or modify a field. This can be used to add derived
+    #' fields for R, Excel, and applications. It can also be used to
+    #' recalculate fields for pipelines that modify data in REDCap using R.
+    add_field = function(field_name,
+                         form_name,
+                         field_type_r = "character",
+                         field_label = NA,
+                         field_choices = NA,
+                         field_note = NA,
+                         identifier = "",
+                         units = NA,
+                         data_func = NA) {
+      fields <- private$project$metadata$fields
+      in_original_redcap <- field_name %in% fields$field_name
+      if (in_original_redcap && missing(form_name)) {
+        original_fields_row <- fields[which(fields$field_name == field_name), ]
+        form_name <- original_fields_row$form_name
+      }
+      private$project <- add_project_field(
+        project = private$project,
+        field_name = field_name,
+        form_name = form_name,
+        field_type_r = field_type_r,
+        field_label = field_label,
+        field_choices = field_choices,
+        field_note = field_note,
+        identifier = identifier,
+        units = units,
+        data_func = data_func
+      ) # add as try
+      invisible(self)
+    },
+    #' @description  Add or modify custom transformation. Developmental feature
+    #'
+    add_transformation = function(transformation) {
+      private$project <- add_project_transformation(
+        project = private$project,
+        transformation = transformation
+      ) # add as try
+      invisible(self)
+    },
+    #' @description Remove all added fields.
+    remove_added_fields = function() {
+      private$project <- remove_project_fields(private$project)
+      invisible(self)
+    },
+    #' @description Remove custom transformation.
+    remove_transformation = function() {
+      private$project <- remove_project_transformation(private$project)
       invisible(self)
     },
     #' @description  Load dataset if previously defined with `add_dataset`.
@@ -471,7 +588,8 @@ REDCapSyncProject <- R6Class(
                                 include_users = TRUE,
                                 include_log = FALSE,
                                 annotate_from_log = TRUE,
-                                include_comments = FALSE) {
+                                include_comments = FALSE,
+                                include_added_fields = TRUE) {
       assert_environment(envir, null.ok = TRUE)
       provided_dataset_name <- !missing(dataset_name)
       if (provided_dataset_name) {
@@ -512,7 +630,8 @@ REDCapSyncProject <- R6Class(
         include_records = include_records,
         include_log = include_log,
         annotate_from_log = annotate_from_log,
-        include_comments = include_comments
+        include_comments = include_comments,
+        include_added_fields = include_added_fields
       )
       dataset$to_envir(envir = envir)
       invisible(dataset)

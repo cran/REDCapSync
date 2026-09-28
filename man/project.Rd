@@ -174,6 +174,12 @@ assigned with \link{setup_project}.}
     \item{\code{data}}{Read-only named list where each name is an instrument name.
 See public methods for \link{REDCapSyncProject}.}
 
+    \item{\code{datasets}}{Read-only named list for datasets.
+See public methods for \link{REDCapSyncProject}.}
+
+    \item{\code{transformation}}{Read-only list for fields and transformations.
+See public methods for \link{REDCapSyncProject}.}
+
     \item{\code{metadata}}{Read-only named list with REDCap metadata. See
 public methods for \link{REDCapSyncProject}.}
 
@@ -191,6 +197,10 @@ users and log.}
     \item \href{#method-REDCapSyncProject-print}{\code{REDCapSyncProject$print()}}
     \item \href{#method-REDCapSyncProject-sync}{\code{REDCapSyncProject$sync()}}
     \item \href{#method-REDCapSyncProject-add_dataset}{\code{REDCapSyncProject$add_dataset()}}
+    \item \href{#method-REDCapSyncProject-add_field}{\code{REDCapSyncProject$add_field()}}
+    \item \href{#method-REDCapSyncProject-add_transformation}{\code{REDCapSyncProject$add_transformation()}}
+    \item \href{#method-REDCapSyncProject-remove_added_fields}{\code{REDCapSyncProject$remove_added_fields()}}
+    \item \href{#method-REDCapSyncProject-remove_transformation}{\code{REDCapSyncProject$remove_transformation()}}
     \item \href{#method-REDCapSyncProject-load_dataset}{\code{REDCapSyncProject$load_dataset()}}
     \item \href{#method-REDCapSyncProject-remove_datasets}{\code{REDCapSyncProject$remove_datasets()}}
     \item \href{#method-REDCapSyncProject-generate_dataset}{\code{REDCapSyncProject$generate_dataset()}}
@@ -305,6 +315,7 @@ is \code{TRUE}.}
   include_log = FALSE,
   annotate_from_log = TRUE,
   include_comments = TRUE,
+  include_added_fields = TRUE,
   with_links = TRUE,
   separate = FALSE,
   use_csv = FALSE,
@@ -319,9 +330,28 @@ is \code{TRUE}.}
     \describe{
       \item{\code{dataset_name}}{Character. Name of the dataset configuration to create,
 load, or reference.}
-      \item{\code{transformation_type}}{Character. How to transform data: "default"
-(merge non-repeating then add to repeating), "none" (no transformation), or
-"merge_non_repeating" (merge non-repeating only). Default is "default".}
+      \item{\code{transformation_type}}{Character. Data transformation strategy:
+\itemize{
+\item \code{"default"}: Preferred output. Merges all
+non-repeating forms into a single record-level dataset and merges
+repeating forms to the right, retaining all repeat instances.
+\item \code{"none"}: Return the raw REDCap data structure, with
+non-repeating and repeating forms kept as separate datasets.
+\item \code{"merged_simple"}: Merge all non-repeating forms into a
+single record-level dataset. Repeating forms remain separate
+without merged data added to the right (like \code{default}).
+\item \code{"wide_first"}: Merge all non-repeating forms and retain
+only the first instance of each repeating form, producing one row
+per record.
+\item \code{"wide_all"}: Merge all non-repeating forms and reshape
+all instances of repeating forms to a wide format, producing one
+row per record. Repeating field names are suffixed with the form
+name and repeat instance.
+}
+Default is \code{"default"}. Transformations types \code{none},
+\code{merged_simple}, and \code{default} are upload compatible.
+Transformations types \code{wide_first} and \code{wide_all} widen the data by adding
+new variables and are therefore not upload compatible.}
       \item{\code{merge_form_name}}{Character. Name for the merged non-repeating form.
 Default is "merged".}
       \item{\code{filter_field}}{Character. Field name to filter dataset on.}
@@ -359,6 +389,7 @@ is \code{TRUE}.}
       \item{\code{annotate_from_log}}{Logical. Annotate data using the REDCap log. Default
 is \code{TRUE}.}
       \item{\code{include_comments}}{Logical. Include field comments. Default is \code{TRUE}.}
+      \item{\code{include_added_fields}}{Logical. Include added fields. Default is \code{TRUE}.}
       \item{\code{with_links}}{Logical. Include hyperlinks in Excel exports. Default is
 \code{FALSE}.}
       \item{\code{separate}}{Logical. Separate each form into distinct files (vs.
@@ -371,6 +402,96 @@ folder).}
       \item{\code{hard_reset}}{Logical. Overwrite existing dataset files. Default is
 \code{FALSE}.}
     }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-REDCapSyncProject-add_field"></a>}}
+\if{latex}{\out{\hypertarget{method-REDCapSyncProject-add_field}{}}}
+\subsection{\code{REDCapSyncProject$add_field()}}{
+  Add or modify a field. This can be used to add derived
+fields for R, Excel, and applications. It can also be used to
+recalculate fields for pipelines that modify data in REDCap using R.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{REDCapSyncProject$add_field(
+  field_name,
+  form_name,
+  field_type_r = "character",
+  field_label = NA,
+  field_choices = NA,
+  field_note = NA,
+  identifier = "",
+  units = NA,
+  data_func = NA
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{field_name}}{Character. Field name to be used for added field.}
+      \item{\code{form_name}}{Character. Form name to be used for added field. Must be an
+existing REDCap form/instrument.}
+      \item{\code{field_type_r}}{Character. One of "character", "factor", "date",
+"datetime", "integer", or  "numeric" . Default is \code{character}.}
+      \item{\code{field_label}}{Character. Field label for added field.}
+      \item{\code{field_choices}}{Character vector. Choices if \code{field_type_r} is "factor".}
+      \item{\code{field_note}}{Character Field note for added field.}
+      \item{\code{identifier}}{Character. Either "", or "y" per REDCap data dictionary.}
+      \item{\code{units}}{Character. To be used for plots and tables.}
+      \item{\code{data_func}}{Function. Must have "project" as the only parameter. Must
+return a vector of the field (same length and order as form).
+Example, \code{data_func = function(project) {...}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-REDCapSyncProject-add_transformation"></a>}}
+\if{latex}{\out{\hypertarget{method-REDCapSyncProject-add_transformation}{}}}
+\subsection{\code{REDCapSyncProject$add_transformation()}}{
+  Add or modify custom transformation. Developmental feature
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{REDCapSyncProject$add_transformation(transformation)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{transformation}}{Function. Must have "project" as the only
+parameter. Allows any custom transformation to be run for before each
+\code{project$generate_dataset(...)} independently of \code{transformation_type}. Must
+return project object. Example,
+\code{transformation = function(project) {...}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-REDCapSyncProject-remove_added_fields"></a>}}
+\if{latex}{\out{\hypertarget{method-REDCapSyncProject-remove_added_fields}{}}}
+\subsection{\code{REDCapSyncProject$remove_added_fields()}}{
+  Remove all added fields.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{REDCapSyncProject$remove_added_fields()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-REDCapSyncProject-remove_transformation"></a>}}
+\if{latex}{\out{\hypertarget{method-REDCapSyncProject-remove_transformation}{}}}
+\subsection{\code{REDCapSyncProject$remove_transformation()}}{
+  Remove custom transformation.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{REDCapSyncProject$remove_transformation()}
     \if{html}{\out{</div>}}
   }
 }
@@ -449,7 +570,8 @@ custom datasets.
   include_users = TRUE,
   include_log = FALSE,
   annotate_from_log = TRUE,
-  include_comments = FALSE
+  include_comments = FALSE,
+  include_added_fields = TRUE
 )}
     \if{html}{\out{</div>}}
   }
@@ -459,9 +581,28 @@ custom datasets.
       \item{\code{dataset_name}}{Character. Name of the dataset configuration to create,
 load, or reference.}
       \item{\code{envir}}{Environment to assign dataset objects. Default is \code{NULL}.}
-      \item{\code{transformation_type}}{Character. How to transform data: "default"
-(merge non-repeating then add to repeating), "none" (no transformation), or
-"merge_non_repeating" (merge non-repeating only). Default is "default".}
+      \item{\code{transformation_type}}{Character. Data transformation strategy:
+\itemize{
+\item \code{"default"}: Preferred output. Merges all
+non-repeating forms into a single record-level dataset and merges
+repeating forms to the right, retaining all repeat instances.
+\item \code{"none"}: Return the raw REDCap data structure, with
+non-repeating and repeating forms kept as separate datasets.
+\item \code{"merged_simple"}: Merge all non-repeating forms into a
+single record-level dataset. Repeating forms remain separate
+without merged data added to the right (like \code{default}).
+\item \code{"wide_first"}: Merge all non-repeating forms and retain
+only the first instance of each repeating form, producing one row
+per record.
+\item \code{"wide_all"}: Merge all non-repeating forms and reshape
+all instances of repeating forms to a wide format, producing one
+row per record. Repeating field names are suffixed with the form
+name and repeat instance.
+}
+Default is \code{"default"}. Transformations types \code{none},
+\code{merged_simple}, and \code{default} are upload compatible.
+Transformations types \code{wide_first} and \code{wide_all} widen the data by adding
+new variables and are therefore not upload compatible.}
       \item{\code{merge_form_name}}{Character. Name for the merged non-repeating form.
 Default is "merged".}
       \item{\code{filter_field}}{Character. Field name to filter dataset on.}
@@ -499,6 +640,7 @@ is \code{TRUE}.}
       \item{\code{annotate_from_log}}{Logical. Annotate data using the REDCap log. Default
 is \code{TRUE}.}
       \item{\code{include_comments}}{Logical. Include field comments. Default is \code{TRUE}.}
+      \item{\code{include_added_fields}}{Logical. Include added fields. Default is \code{TRUE}.}
     }
     \if{html}{\out{</div>}}
   }

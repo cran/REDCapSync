@@ -152,7 +152,8 @@ Users should construct objects using \link{REDCapSyncProject}.
   include_records = TRUE,
   include_log = FALSE,
   annotate_from_log = TRUE,
-  include_comments = FALSE
+  include_comments = FALSE,
+  include_added_fields = TRUE
 )}
     \if{html}{\out{</div>}}
   }
@@ -163,10 +164,28 @@ Users should construct objects using \link{REDCapSyncProject}.
       \item{\code{dataset_name}}{Character. Name of the dataset to generate or load.
 If the dataset already exists in the project, the existing definition is
 reused.}
-      \item{\code{transformation_type}}{Character. Data transformation strategy: "default"
-(preferred merged output), "none" (raw data structure), or
-"merge_non_repeating" (merge only non-repeating forms). Default is
-"default".}
+      \item{\code{transformation_type}}{Character. Data transformation strategy:
+\itemize{
+\item \code{"default"}: Preferred output. Merges all
+non-repeating forms into a single record-level dataset and merges
+repeating forms to the right, retaining all repeat instances.
+\item \code{"none"}: Return the raw REDCap data structure, with
+non-repeating and repeating forms kept as separate datasets.
+\item \code{"merged_simple"}: Merge all non-repeating forms into a
+single record-level dataset. Repeating forms remain separate
+without merged data added to the right (like \code{default}).
+\item \code{"wide_first"}: Merge all non-repeating forms and retain
+only the first instance of each repeating form, producing one row
+per record.
+\item \code{"wide_all"}: Merge all non-repeating forms and reshape
+all instances of repeating forms to a wide format, producing one
+row per record. Repeating field names are suffixed with the form
+name and repeat instance.
+}
+Default is \code{"default"}. Transformations types \code{none},
+\code{merged_simple}, and \code{default} are upload compatible.
+Transformations types \code{wide_first} and \code{wide_all} widen the data by adding
+new variables and are therefore not upload compatible.}
       \item{\code{merge_form_name}}{Character. Name used for merged non-repeating records.
 Default is "merged".}
       \item{\code{filter_field}}{Character. Field used for filtering the dataset.}
@@ -206,8 +225,8 @@ Default is \code{TRUE}.}
 \code{FALSE}.}
       \item{\code{annotate_from_log}}{Logical. Annotate metadata and records using the
 change log. Default is \code{TRUE}.}
-      \item{\code{include_comments}}{Logical. Include REDCap comments. Default is
-\code{FALSE}.}
+      \item{\code{include_comments}}{Logical. Include field comments. Default is \code{TRUE}.}
+      \item{\code{include_added_fields}}{Logical. Include added fields. Default is \code{TRUE}.}
     }
     \if{html}{\out{</div>}}
   }

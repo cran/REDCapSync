@@ -14,11 +14,33 @@ knitr::opts_chunk$set(
 # 
 # project$sync() #optional sync
 # 
-# dataset <- project$load_dataset("REDCapSync")
+# project$add_field(
+#   field_name = "letter_b",
+#   form_name = "text",
+#   data_func = function(project) {
+#     project$data$text$var_text_letters == "b"
+#   }
+# )
 # 
-# # add quick custom variable
-# # in future version you can use project$add_field for this
-# dataset$data$merged$letter_b <- dataset$data$merged$var_text_letters == "b"
+# project$add_field(
+#   field_name = "factor_sml",
+#   form_name = "text",
+#   field_type_r = "factor",
+#   field_choices = c("Small", "Medium", "Large"),
+#   data_func = function(project) {
+#     nums <- as.integer(project$data$text$var_text_integer)
+#     final <- ifelse(nums <= 33, "Small", ifelse(nums <= 66, "Medium", "Large"))
+#     final # must be in same order as original
+#   }
+# )
+# 
+# dataset <- project$generate_dataset("custom", exclude_identifiers = FALSE)
+# 
+# dataset$data$merged$letter_b
+# 
+# dataset$data$merged$factor_sml
+# 
+# dataset$data$merged[, c("var_text_integer", "factor_SML")]
 # 
 # # send data in global environment
 # dataset$to_envir(globalenv())
