@@ -356,43 +356,44 @@ operations, including in exports and the RosyREDCap shiny app.</p>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">add_field</span>(</span>
 <span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="at">field_name =</span> <span class="st">&quot;letter_b&quot;</span>,</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">form_name =</span> <span class="st">&quot;text&quot;</span>,</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">data_func =</span> <span class="cf">function</span>(project) {</span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>    project<span class="sc">$</span>data<span class="sc">$</span>text<span class="sc">$</span>var_text_letters <span class="sc">==</span> <span class="st">&quot;b&quot;</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  }</span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>)</span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">add_field</span>(</span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="at">field_name =</span> <span class="st">&quot;factor_sml&quot;</span>,</span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="at">form_name =</span> <span class="st">&quot;text&quot;</span>,</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="at">field_type_r =</span> <span class="st">&quot;factor&quot;</span>,</span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="at">field_choices =</span> <span class="fu">c</span>(<span class="st">&quot;Small&quot;</span>, <span class="st">&quot;Medium&quot;</span>, <span class="st">&quot;Large&quot;</span>),</span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="at">data_func =</span> <span class="cf">function</span>(project) {</span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>    nums <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(project<span class="sc">$</span>data<span class="sc">$</span>text<span class="sc">$</span>var_text_integer)</span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>    final <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(nums <span class="sc">&lt;=</span> <span class="dv">33</span>, <span class="st">&quot;Small&quot;</span>, <span class="fu">ifelse</span>(nums <span class="sc">&lt;=</span> <span class="dv">66</span>, <span class="st">&quot;Medium&quot;</span>, <span class="st">&quot;Large&quot;</span>))</span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>    final <span class="co"># must be in same order as original</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  }</span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>)</span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>dataset <span class="ot">&lt;-</span> project<span class="sc">$</span><span class="fu">generate_dataset</span>(<span class="st">&quot;custom&quot;</span>, <span class="at">exclude_identifiers =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged<span class="sc">$</span>letter_b</span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged<span class="sc">$</span>factor_sml</span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a></span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged[, <span class="fu">c</span>(<span class="st">&quot;var_text_integer&quot;</span>, <span class="st">&quot;factor_SML&quot;</span>)]</span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a></span>
-<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co"># send data in global environment</span></span>
-<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">to_envir</span>(<span class="fu">globalenv</span>())</span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a></span>
-<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="co"># preview file from temporary directory</span></span>
-<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">preview</span>()</span>
-<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a> </span>
-<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a><span class="co"># save data in custom location</span></span>
-<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">save</span>(<span class="at">dir_other =</span> save_dir)</span>
-<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a></span>
-<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a><span class="co"># open folder where file was saved</span></span>
-<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="fu">browseURL</span>(save_dir)</span></code></pre></div>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">field_label =</span> <span class="st">&quot;Letter B?&quot;</span>,</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">form_name =</span> <span class="st">&quot;text&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="at">data_func =</span> <span class="cf">function</span>(project) {</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>    project<span class="sc">$</span>data<span class="sc">$</span>text<span class="sc">$</span>var_text_letters <span class="sc">==</span> <span class="st">&quot;b&quot;</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  }</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>project<span class="sc">$</span><span class="fu">add_field</span>(</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="at">field_name =</span> <span class="st">&quot;factor_sml&quot;</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="at">form_name =</span> <span class="st">&quot;text&quot;</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="at">field_type_r =</span> <span class="st">&quot;factor&quot;</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="at">field_choices =</span> <span class="fu">c</span>(<span class="st">&quot;Small&quot;</span>, <span class="st">&quot;Medium&quot;</span>, <span class="st">&quot;Large&quot;</span>),</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  <span class="at">data_func =</span> <span class="cf">function</span>(project) {</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>    nums <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(project<span class="sc">$</span>data<span class="sc">$</span>text<span class="sc">$</span>var_text_integer)</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>    final <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(nums <span class="sc">&lt;=</span> <span class="dv">33</span>, <span class="st">&quot;Small&quot;</span>, <span class="fu">ifelse</span>(nums <span class="sc">&lt;=</span> <span class="dv">66</span>, <span class="st">&quot;Medium&quot;</span>, <span class="st">&quot;Large&quot;</span>))</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>    final <span class="co"># must be in same order as original</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  }</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>)</span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>dataset <span class="ot">&lt;-</span> project<span class="sc">$</span><span class="fu">generate_dataset</span>(<span class="st">&quot;custom&quot;</span>, <span class="at">exclude_identifiers =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged<span class="sc">$</span>letter_b</span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged<span class="sc">$</span>factor_sml</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>dataset<span class="sc">$</span>data<span class="sc">$</span>merged[, <span class="fu">c</span>(<span class="st">&quot;var_text_integer&quot;</span>, <span class="st">&quot;factor_sml&quot;</span>)]</span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co"># send data in global environment</span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">to_envir</span>(<span class="fu">globalenv</span>())</span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a></span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a><span class="co"># preview file from temporary directory</span></span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">preview</span>()</span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a> </span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="co"># save data in custom location</span></span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>dataset<span class="sc">$</span><span class="fu">save</span>(<span class="at">dir_other =</span> save_dir)</span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="co"># open folder where file was saved</span></span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a><span class="fu">browseURL</span>(save_dir)</span></code></pre></div>
 <p>You can also chain together certain functions… So this is the same as
 above.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>save_dir <span class="ot">&lt;-</span> <span class="fu">tempdir</span>() <span class="co"># replace with your intended folder</span></span>

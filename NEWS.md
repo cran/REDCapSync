@@ -1,3 +1,10 @@
+# REDCapSync 0.2.1
+
+## Fixes
+
+* DESCRIPTION file error fix
+* additional tests for fields to get 90% coverage
+
 # REDCapSync 0.2.0
 
 ## New Features
@@ -15,12 +22,6 @@
 
 ## Fixes
 * account for checkboxes, radio, and dropdown with no choice in dictionary 
-
-## In development 
-
-* Preparing RosyREDCap for CRAN submission
-* Preparing for R journal submission
-* Waiting for suggestions/issues on GitHub issues page(s)
 
 # REDCapSync 0.1.1
 

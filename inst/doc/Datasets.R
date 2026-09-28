@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # 
 # project$add_field(
 #   field_name = "letter_b",
+#   field_label = "Letter B?",
 #   form_name = "text",
 #   data_func = function(project) {
 #     project$data$text$var_text_letters == "b"
@@ -40,7 +41,7 @@ knitr::opts_chunk$set(
 # 
 # dataset$data$merged$factor_sml
 # 
-# dataset$data$merged[, c("var_text_integer", "factor_SML")]
+# dataset$data$merged[, c("var_text_integer", "factor_sml")]
 # 
 # # send data in global environment
 # dataset$to_envir(globalenv())
